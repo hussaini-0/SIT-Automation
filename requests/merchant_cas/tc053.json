@@ -1,6 +1,6 @@
 {
   "info": {
-    "rrn": "ABC025068050",
+    "rrn": "${RRN}",
     "stan": "${STAN}"
   },
   "senderIdentification": {

@@ -1,8 +1,8 @@
 {
   "rrn": "${RRN}",
   "stan": "${STAN}",
-  "iban": "PK61ABPA0010000019474073",
-  "memberid": "ABPAPKKA",
+  "iban": "${RECEIVER_IBAN}",
+  "memberid": "${RECEIVER_BIC}",
   "idType": "",
   "idValue": "",
   "amount": 0

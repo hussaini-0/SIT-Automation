@@ -23,6 +23,7 @@ sheet.append(
         "Execute (Y/N)",
         "Flow_Config",
         "Validation_Rules",
+        "Trx_type",
     ]
 )
 
@@ -39,6 +40,7 @@ sheet.append(
         "Y",
         "",
         "",
+        "financial",
     ]
 )
 
@@ -55,6 +57,7 @@ sheet.append(
         "Y",
         "",
         "",
+        "financial",
     ]
 )
 
@@ -71,6 +74,7 @@ sheet.append(
         "Y",
         "",
         "",
+        "non-financial",
     ]
 )
 
@@ -87,6 +91,7 @@ sheet.append(
         "N",
         "pacs008_to_pacs002",
         '{"field":"transaction_status"}',
+        "non-financial",
     ]
 )
 
@@ -103,6 +108,7 @@ sheet.append(
         "Y",
         "",
         "",
+        "non-financial",
     ]
 )
 
@@ -119,6 +125,7 @@ sheet.append(
         "Y",
         "",
         "",
+        "non-financial",
     ]
 )
 
@@ -135,6 +142,7 @@ sheet.append(
         "Y",
         "",
         "",
+        "non-financial",
     ]
 )
 
@@ -151,6 +159,7 @@ sheet.append(
         "Y",
         "",
         "",
+        "financial",
     ]
 )
 

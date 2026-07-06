@@ -1,6 +1,12 @@
 
-sender_iban: "PK80DUIB0000000094216001"
+sender_iban: "PK33MCIB0241000434850001"
 receiver_iban: "PK61ABPA0010000019474073"
+
+RECEIVER_BIC: "TMICFBPK"
+RECIEVER_IBAN: "PK28TMFB0000000001724008"
+
+ACCOUNT_NUMBER: "03265703141"
+ACCOUNT_NUMBER_BIC: "CRSMPKKA"
 # ─────────────────────────────────────────────────────────────────────────────
 # Shared test data for TC011 – TC020
 # Edit the values below; they are injected into request JSON files at runtime
@@ -8,29 +14,31 @@ receiver_iban: "PK61ABPA0010000019474073"
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Primary customer identity used across TC011-TC015, TC017, TC019-TC020
-CNIC: "2077963780014"
+CNIC: "1117361039962"
 #for postive and negative test cases, we need to use different CNICs for the same customer. So, we have added 3 more CNICs for the same customer.
-CNIC2: "1180193082534"
-CNIC3: "1174007501014"
-CNIC4: "2000163001014"
-CNIC5: "1249789001534"
-CNIC6: "1030103208756"
-CNIC7: "2269006362534"
+CNIC2: "1228693182533"
+CNIC3: "7334007129014"
+CNIC4: "2552363109016"
+CNIC5: "1669788187537"
+CNIC6: "1777109189758"
+CNIC7: "2889000109539"
+CNIC_11: "1117396039962"
 
 
 # Primary alias (mobile) used in TC015-TC017, TC019
-MOBILE: "03193675229"
+MOBILE: "03039328500"
 
 # Primary IBAN used in TC015, TC019
-IBAN: "PK15BAHL0993789500034820"
+IBAN: "PK15BAHL0129301487003482"
 
+IBAN_3: "PK15BAHL0227300987303483"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Secondary values used in TC018 (link account for a second customer / alias)
 # ─────────────────────────────────────────────────────────────────────────────
-CNIC_2: "4240002636655"
-MOBILE_2: "01976300225"
-IBAN_2: "PK15BPHL71978969500034815"
+CNIC_2: "4240012206657"
+MOBILE_2: "03171147229"
+IBAN_2: "PK15BPHL7999968300003434"
 
 TIMEOUT_IBAN: "PK27FAYS0110006000039479"
 REJECT_IBAN: "PK46TMFB0000000044235680"

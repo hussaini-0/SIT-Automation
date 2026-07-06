@@ -3,5 +3,5 @@
   "stan": "${STAN}",
   "type": "CNIC",
   "value": "3520112345671",
-  "amount": 0
+  "amount": 0.0
 }

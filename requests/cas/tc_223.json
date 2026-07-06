@@ -2,5 +2,5 @@
   "rrn": "${RRN}",
   "stan": "${STAN}",
   "type": "MOBILE",
-  "amount": 0
+  "amount": 0.0
 }

@@ -53,6 +53,7 @@ class ServiceTestCase:
     flow_config: str = ""
     validation_rules: str = ""
     test_type: str = "positive"
+    trx_type: str = "non-financial"
 
 
 class SITRunner:
@@ -295,25 +296,37 @@ class SITRunner:
                     )
                     continue
 
+                service = service.lower()
+                api_name = str(row[header_index.get("API_Name", -1)] or "").strip()
+                explicit_trx_type = (
+                    str(row[header_index.get("Trx_type", -1)] or "").strip()
+                    if "Trx_type" in header_index
+                    else ""
+                )
+                flow_config = (
+                    str(row[header_index.get("Flow_Config", -1)] or "").strip()
+                    if "Flow_Config" in header_index
+                    else ""
+                )
+
                 testcase = ServiceTestCase(
                     tc_id=str(row[header_index["TC_ID"]]).strip(),
                     service=service,
                     description=str(row[header_index.get("Description", -1)] or "").strip(),
                     bank=str(row[header_index.get("Bank", -1)] or "").strip(),
-                    api_name=str(row[header_index.get("API_Name", -1)] or "").strip(),
+                    api_name=api_name,
                     request_file=str(row[header_index.get("Request_File", -1)] or "").strip(),
                     expected_result=str(row[header_index.get("Expected_Result", -1)] or "").strip(),
                     validation_type=str(row[header_index.get("Validation_Type", -1)] or "response").strip(),
                     execute=str(row[header_index["Execute (Y/N)"]]).strip().upper(),
-                    flow_config=str(row[header_index.get("Flow_Config", -1)] or "").strip()
-                    if "Flow_Config" in header_index
-                    else "",
+                    flow_config=flow_config,
                     validation_rules=str(row[header_index.get("Validation_Rules", -1)] or "").strip()
                     if "Validation_Rules" in header_index
                     else "",
                     test_type=str(row[header_index.get("Test_Type", -1)] or "positive").strip().lower()
                     if "Test_Type" in header_index
                     else "positive",
+                    trx_type=self._resolve_trx_type(service, api_name, flow_config, explicit_trx_type),
                 )
                 if testcase.execute == "Y":
                     testcases.append(testcase)
@@ -450,6 +463,7 @@ class SITRunner:
                 "bank": testcase.bank,
                 "api_name": testcase.api_name,
                 "test_type": testcase.test_type,
+                "trx_type": testcase.trx_type,
                 "status": "PASSED" if validation["passed"] else "FAILED",
                 "expected": testcase.expected_result,
                 "actual": validation["actual"],
@@ -474,6 +488,7 @@ class SITRunner:
                 "bank": testcase.bank,
                 "api_name": testcase.api_name,
                 "test_type": testcase.test_type,
+                "trx_type": testcase.trx_type,
                 "status": "FAILED",
                 "expected": testcase.expected_result,
                 "actual": str(exc),
@@ -535,6 +550,7 @@ class SITRunner:
                 "bank": testcase.bank,
                 "api_name": f"{initial_api_name}->{polling_definition.get('api', 'polling')}",
                 "test_type": testcase.test_type,
+                "trx_type": testcase.trx_type,
                 "status": "PASSED" if validation["passed"] else "FAILED",
                 "expected": testcase.expected_result,
                 "actual": validation["actual"],
@@ -613,6 +629,7 @@ class SITRunner:
                     "bank": testcase.bank,
                     "api_name": f"{initial_api_name}->{next_api_name}",
                     "test_type": testcase.test_type,
+                    "trx_type": testcase.trx_type,
                     "status": "PASSED" if validation["passed"] else "FAILED",
                     "expected": testcase.expected_result,
                     "actual": validation["actual"],
@@ -648,6 +665,7 @@ class SITRunner:
                     "bank": testcase.bank,
                     "api_name": initial_api_name,
                     "test_type": testcase.test_type,
+                    "trx_type": testcase.trx_type,
                     "status": "PASSED" if validation["passed"] else "FAILED",
                     "expected": testcase.expected_result,
                     "actual": validation["actual"],
@@ -753,7 +771,9 @@ class SITRunner:
         if not request_file_path.exists():
             request_file_path = self.requests_dir / request_file_name
         template = TemplateEngine.load_json_template(request_file_path)
-        values = DataGenerator.default_tokens()
+        template_tokens = TemplateEngine.extract_placeholders(template)
+        overridden_tokens = set(self.test_data_tokens) | {str(key).upper() for key in extra_tokens}
+        values = DataGenerator.default_tokens(template_tokens - overridden_tokens)
         values.update(self.test_data_tokens)   # user-defined variables from test_data.yaml
         values.update(extra_tokens)            # call-site overrides take highest priority
         rendered = TemplateEngine.render_template(template, values)
@@ -887,6 +907,56 @@ class SITRunner:
 
         return default_service
 
+    def _resolve_trx_type(
+        self,
+        service: str,
+        api_name: str,
+        flow_config: str = "",
+        explicit_trx_type: str = "",
+    ) -> str:
+        normalized = str(explicit_trx_type or "").strip().lower().replace("_", "-")
+        normalized = re.sub(r"\s+", "-", normalized)
+
+        if normalized in {"financial", "non-financial"}:
+            return normalized
+        if normalized == "non-financial":
+            return "non-financial"
+        if normalized == "non-financial":
+            return "non-financial"
+        if normalized in {"financial-negative", "financial-positive", "non-financial-negative", "non-financial-positive"}:
+            return normalized
+        if normalized and re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", normalized):
+            return normalized
+
+        service_id = str(service or "").strip().lower()
+        api_key = str(api_name or "").strip().lower()
+        flow_apis = self._flow_api_names(service_id, flow_config)
+        api_names = {api_key, *flow_apis}
+
+        if service_id == "merchant_cas":
+            return "non-financial" if api_key == "authenticate" else "financial"
+
+        if service_id == "cas":
+            for candidate in api_names:
+                if "payment" in candidate or "directposting" in candidate:
+                    return "financial"
+            return "non-financial"
+
+        return "non-financial"
+
+    def _flow_api_names(self, service: str, flow_config: str) -> set:
+        if not flow_config:
+            return set()
+        service_flows = self.service_api_config.get(service, {}).get("flows", {})
+        flow = service_flows.get(flow_config, {})
+        names = {
+            str(flow.get("initial_api", "")).strip().lower(),
+            str((flow.get("polling") or {}).get("api", "")).strip().lower(),
+            str((flow.get("on_success") or {}).get("next_api", "")).strip().lower(),
+            str((flow.get("next") or {}).get("next_api", "")).strip().lower(),
+        }
+        return {name for name in names if name}
+
     def _get_bank_base_url(self, bank_name: str, service: str = "cas") -> str:
         """Get base URL with service priority, then bank fallback mapping."""
         service_base_url = self.service_manager.get_service_base_url(service)
@@ -992,6 +1062,7 @@ class SITRunner:
             "Service",
             "Description",
             "Test_Type",
+            "Trx_type",
             "Status",
             "Expected",
             "Actual",
@@ -1008,6 +1079,7 @@ class SITRunner:
                 self._safe_csv(item.get("service", "cas")),
                 self._safe_csv(item.get("description")),
                 self._safe_csv(item.get("test_type", "positive")),
+                self._safe_csv(item.get("trx_type", "non-financial")),
                 self._safe_csv(item.get("status")),
                 self._safe_csv(item.get("expected")),
                 self._safe_csv(item.get("actual")),
@@ -1240,11 +1312,14 @@ class SITRunner:
         service_nav: Dict[str, Dict[str, Any]] = {}
         api_names = set()
         test_types = set()
+        trx_types = set()
         for index, item in enumerate(results, start=1):
             status = str(item.get("status", "")).upper()
             status_class = "status-pass" if status == "PASSED" else "status-fail"
             test_type_display = str(item.get("test_type", "positive")).capitalize()
             test_type_class = "test-positive" if test_type_display.lower() == "positive" else "test-negative"
+            trx_type = str(item.get("trx_type", "non-financial")).lower()
+            trx_type_display = trx_type.capitalize()
             details_id = f"details-{run_tag}-{index}"
             actual_modal_id = f"actual-modal-{run_tag}-{index}"
             service_id = str(item.get("service", "cas")).strip() or "cas"
@@ -1252,6 +1327,7 @@ class SITRunner:
             api_name = str(item.get("api_name", ""))
             api_names.add(api_name)
             test_types.add(str(item.get("test_type", "positive")).lower())
+            trx_types.add(trx_type)
             response_ms = int(item.get("response_time_ms") or 0)
             response_class = "rt-fast" if response_ms <= 1000 else "rt-medium" if response_ms <= 3000 else "rt-slow"
             failure_reason = self._extract_failure_reason(item)
@@ -1264,6 +1340,7 @@ class SITRunner:
                     str(item.get("description", "")),
                     str(item.get("bank", "")),
                     api_name,
+                    trx_type,
                     status,
                     str(item.get("expected", "")),
                     failure_reason_display,
@@ -1302,11 +1379,13 @@ class SITRunner:
                 f"data-row-status='{status.lower()}' "
                 f"data-api='{self._html_escape(api_name)}' "
                 f"data-test-type='{self._html_escape(str(item.get('test_type', 'positive')).lower())}' "
+                f"data-trx-type='{self._html_escape(trx_type)}' "
                 f"data-search='{self._html_escape(search_blob)}'>"
                 f"<td><code>{self._html_escape(str(item.get('tc_id', '')))}</code></td>"
                 f"<td>{service_key}</td>"
                 f"<td>{self._html_escape(str(item.get('description', '')))}</td>"
                 f"<td><span class='type-chip {test_type_class}'>{self._html_escape(test_type_display)}</span></td>"
+                f"<td><span class='type-chip'>{self._html_escape(trx_type_display)}</span></td>"
                 f"<td>{self._html_escape(str(item.get('bank', '')))}</td>"
                 f"<td>{self._html_escape(api_name)}</td>"
                 f"<td><span class='status-chip {status_class}'>{self._html_escape(status)}</span></td>"
@@ -1426,10 +1505,11 @@ class SITRunner:
                 f"data-detail-status='{status.lower()}' "
                 f"data-api='{self._html_escape(api_name)}' "
                 f"data-test-type='{self._html_escape(str(item.get('test_type', 'positive')).lower())}' "
+                f"data-trx-type='{self._html_escape(trx_type)}' "
                 f"data-search='{self._html_escape(search_blob)}'>"
                 "<div class='detail-head'>"
                 f"<h3>{self._html_escape(str(item.get('tc_id', '')))} - {self._html_escape(str(item.get('description', '')))}</h3>"
-                f"<div class='detail-meta'>Service: {service_key} | Test Type: {self._html_escape(test_type_display)} | API: {self._html_escape(api_name)} | Bank: {self._html_escape(str(item.get('bank', '')))} | Status: <span class='{status_class}'>{self._html_escape(status)}</span> | Failure Reason: {self._html_escape(failure_reason_display)}</div>"
+                f"<div class='detail-meta'>Service: {service_key} | Test Type: {self._html_escape(test_type_display)} | Trx Type: {self._html_escape(trx_type_display)} | API: {self._html_escape(api_name)} | Bank: {self._html_escape(str(item.get('bank', '')))} | Status: <span class='{status_class}'>{self._html_escape(status)}</span> | Failure Reason: {self._html_escape(failure_reason_display)}</div>"
                 "</div>"
                 "<div class='json-grid'>"
                 f"{''.join(sections_html)}"
@@ -1483,6 +1563,10 @@ class SITRunner:
         test_type_options = "".join(
             f"<option value='{self._html_escape(test_type)}'>{self._html_escape(test_type.capitalize())}</option>"
             for test_type in sorted(test_types)
+        )
+        trx_type_options = "".join(
+            f"<option value='{self._html_escape(trx_type)}'>{self._html_escape(trx_type.capitalize())}</option>"
+            for trx_type in sorted(trx_types)
         )
         failure_analysis_html = f"""
         <section class="analysis-grid" aria-label="Failure Analysis">
@@ -1978,6 +2062,10 @@ class SITRunner:
                     <option value="">All Test Types</option>
                     {test_type_options}
                 </select>
+                <select id="trx-type-filter" class="filter-select" aria-label="Filter by transaction type">
+                    <option value="">All Trx Types</option>
+                    {trx_type_options}
+                </select>
                 <input id="search-filter" class="search-input" type="search" placeholder="Search cases" aria-label="Search cases" />
             </div>
             <div class="toolbar-actions">
@@ -2026,6 +2114,7 @@ class SITRunner:
                         <th>Service</th>
                         <th>Description</th>
                         <th>Test Type</th>
+                        <th>Trx Type</th>
                         <th>Bank</th>
                         <th>API</th>
                         <th>Status</th>
@@ -2100,6 +2189,7 @@ class SITRunner:
             var activeService = null;
             var activeApi = '';
             var activeTestType = '';
+            var activeTrxType = '';
             var activeSearch = '';
             var totalRows = document.querySelectorAll('.result-row').length;
             var filterSummary = document.getElementById('filter-summary');
@@ -2134,6 +2224,13 @@ class SITRunner:
                 }}
             }}
 
+            function setTrxType(value) {{
+                activeTrxType = value || '';
+                if (trxTypeFilter) {{
+                    trxTypeFilter.value = activeTrxType;
+                }}
+            }}
+
             function applyFilters() {{
                 var visibleRows = 0;
                 document.querySelectorAll('.result-row').forEach(function(row) {{
@@ -2142,9 +2239,10 @@ class SITRunner:
                     var statusMatch = activeStatus === 'all' || status === activeStatus;
                     var apiMatch = !activeApi || row.getAttribute('data-api') === activeApi;
                     var testTypeMatch = !activeTestType || row.getAttribute('data-test-type') === activeTestType;
+                    var trxTypeMatch = !activeTrxType || row.getAttribute('data-trx-type') === activeTrxType;
                     var searchText = row.getAttribute('data-search') || '';
                     var searchMatch = !activeSearch || searchText.indexOf(activeSearch) !== -1;
-                    var visible = serviceMatch && statusMatch && apiMatch && testTypeMatch && searchMatch;
+                    var visible = serviceMatch && statusMatch && apiMatch && testTypeMatch && trxTypeMatch && searchMatch;
                     row.style.display = visible ? '' : 'none';
                     if (visible) {{
                         visibleRows += 1;
@@ -2156,9 +2254,10 @@ class SITRunner:
                     var statusMatch = activeStatus === 'all' || status === activeStatus;
                     var apiMatch = !activeApi || card.getAttribute('data-api') === activeApi;
                     var testTypeMatch = !activeTestType || card.getAttribute('data-test-type') === activeTestType;
+                    var trxTypeMatch = !activeTrxType || card.getAttribute('data-trx-type') === activeTrxType;
                     var searchText = card.getAttribute('data-search') || '';
                     var searchMatch = !activeSearch || searchText.indexOf(activeSearch) !== -1;
-                    card.style.display = serviceMatch && statusMatch && apiMatch && testTypeMatch && searchMatch ? '' : 'none';
+                    card.style.display = serviceMatch && statusMatch && apiMatch && testTypeMatch && trxTypeMatch && searchMatch ? '' : 'none';
                 }});
                 if (filterSummary) {{
                     filterSummary.textContent = 'Showing ' + visibleRows + ' of ' + totalRows + ' cases';
@@ -2205,6 +2304,14 @@ class SITRunner:
                 }});
             }}
 
+            var trxTypeFilter = document.getElementById('trx-type-filter');
+            if (trxTypeFilter) {{
+                trxTypeFilter.addEventListener('change', function() {{
+                    activeTrxType = trxTypeFilter.value || '';
+                    applyFilters();
+                }});
+            }}
+
             var searchFilter = document.getElementById('search-filter');
             if (searchFilter) {{
                 searchFilter.addEventListener('input', function() {{
@@ -2220,6 +2327,7 @@ class SITRunner:
                     setStatusFilter('all');
                     setApi('');
                     setTestType('');
+                    setTrxType('');
                     setSearch('');
                     applyFilters();
                 }});

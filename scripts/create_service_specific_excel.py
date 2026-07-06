@@ -17,6 +17,7 @@ headers = [
     "Execute (Y/N)",
     "Flow_Config",
     "Validation_Rules",
+    "Trx_type",
 ]
 
 # CAS workbook is intentionally not generated here.

@@ -1,8 +1,9 @@
 # Service definitions with enable/disable capability
 services:
   cas:
-    enabled: false
+    enabled: true
     display_name: "CAS Service"
+    #base_url: http://10.0.150.132:9091
     base_url: http://10.0.150.35:9091
 
   acquiring:
@@ -11,7 +12,7 @@ services:
     base_url: http://10.0.150.35:9096
 
   merchant_cas:
-    enabled: true
+    enabled: false
     display_name: "Merchant CAS Service"
     base_url: http://10.0.150.35:9093
 

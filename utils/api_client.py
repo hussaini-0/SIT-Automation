@@ -31,7 +31,7 @@ class ApiClient:
             status=retries,
             backoff_factor=retry_backoff_factor,
             status_forcelist=retry_status_codes,
-            allowed_methods=frozenset(["GET", "POST", "PUT", "DELETE", "PATCH"]),
+            allowed_methods=frozenset(["GET", "HEAD", "OPTIONS"]),
             raise_on_status=False,
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)

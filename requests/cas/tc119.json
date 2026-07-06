@@ -19,7 +19,7 @@
       "accounts": [
         {
           "id": {
-            "iban": "${IBAN_2}"
+            "iban": "PK50DUIB0000${RRN}"
           },
           "currency": "PKR",
           "isDefault": true

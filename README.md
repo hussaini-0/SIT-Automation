@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # SIT Automation Framework
 
 Config-driven Python automation framework for System Integration Testing (SIT) of banking/payment APIs. The framework reads testcases from Excel, renders JSON request templates, calls configured service endpoints, validates responses, and writes JSON, CSV, HTML reports, and rotating logs.
@@ -71,6 +70,3 @@ slack_report_alert.py Optional report watcher and Slack notifier
 ## Important Note
 
 This repository contains environment-specific URLs, payloads, and test data. Treat it as internal automation code. Review `docs/OPERATIONS_SECURITY.md` before sharing, committing externally, or running the Slack watcher.
-=======
-# Regression-testing
->>>>>>> 6fbee3053e23eff1c6af94b6b5cf29c8edaca0ea

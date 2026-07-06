@@ -1,5 +1,5 @@
 {
- "sender_iban": "PK80DUIB0000000094216001",
+ "sender_iban": "${SENDER_IBAN}",
  "sender_idtype": "CNIC",
  "sender_idvalue": "1234567890123",
  "sender_name": "Ghulam Ali",

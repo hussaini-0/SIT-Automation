@@ -3,5 +3,5 @@
   "stan": "${STAN}",
   "type": "MOBILE",
   "value": "03265703141",
-  "amount": 1000
+  "amount": 1000.0
 }

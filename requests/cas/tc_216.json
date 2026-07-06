@@ -3,5 +3,5 @@
   "stan": "${STAN}",
   "type": "TXT",
   "value": "payee.alias",
-  "amount": 0
+  "amount": 0.0
 }

@@ -3,10 +3,10 @@
   "stan": "${STAN}",
   "uid": {
     "type": "CNIC",
-    "value": "${CNIC_2}"
+    "value": "1${RRN}"
   },
   "documentType": "CNIC",
-  "documentNumber": "${CNIC_2}",
+  "documentNumber": "1${RRN}",
   "name": "faizulamin",
   "surname": "faizulamin",
   "gender": "MALE",
@@ -23,7 +23,7 @@
       "accounts": [
         {
           "id": {
-            "iban": "${IBAN_2}"
+            "iban": "PK50DUIB0000${RRN}"
           },
           "currency": "PKR",
           "isDefault": true,

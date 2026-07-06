@@ -3,10 +3,10 @@
   "stan": "${STAN}",
   "uid": {
     "type": "CNIC",
-    "value": "${CNIC_2}"
+    "value": "1${RRN}"
   },
   "documentType": "CNIC",
-  "documentNumber": "${CNIC_2}",
+  "documentNumber": "1${RRN}",
   "name": "faizulamin",
   "surname": "faizulamin",
   "gender": "MALE",

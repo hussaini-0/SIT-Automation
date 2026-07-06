@@ -1,9 +1,9 @@
 {
   "rrn": "${RRN}",
   "stan": "${STAN}",
-  "memberid": "ABPAPKKA",
+  "memberid": "${ACCOUNT_NUMBER_BIC}",
   "idType": "",
   "idValue": "",
   "amount": 0,
-  "accountnumber": "0010000019474073"
+  "accountnumber": "${ACCOUNT_NUMBER}"
 }

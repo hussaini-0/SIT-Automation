@@ -29,6 +29,7 @@
 | `Flow_Config` | Flow key from `config/apis.yaml` |
 | `Validation_Rules` | JSON object string with extra validation settings |
 | `Test_Type` | Display classification such as `positive` or `negative` |
+| `Trx_type` | Transaction category: `financial` or `non-financial`. If blank or missing, CAS `payment`/`directposting` APIs are financial, Merchant CAS APIs are financial except `authenticate`, and other APIs default to non-financial. |
 
 ## Validation Types
 
@@ -64,10 +65,11 @@ Supported generated tokens:
 
 | Token | Meaning |
 | --- | --- |
-| `${RRN}` | Unique 12-digit reference number persisted in `results/rrn_registry.json` |
+| `${RRN}` | Unique 12-digit reference number generated only when the template uses it, and persisted in `results/rrn_registry.json` |
+| `${DUPLICATE_RRN}` | Reuses the last generated RRN for intentional duplicate-RRN negative cases only |
 | `${STAN}` | Random 6-digit trace number |
 | `${DATE}` | Current date as `YYYY-MM-DD` |
-| `${TIME}` | Current time as `HH:MM:SS` |
+| `${TIME}` | Current time as `HHMMSS` |
 | `${DATETIME}` | Current date and time as `YYYYMMDDHHMMSS` |
 | `${RTP_ID_UNIQUE}` | Unique RTP reference suitable for positive merchant RTP payments |
 | `${TRANSACTION_ID}` | Usually supplied by a flow/polling step |
