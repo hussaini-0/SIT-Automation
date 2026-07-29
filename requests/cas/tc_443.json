@@ -1,0 +1,9 @@
+{
+  "rrn": "${RRN}",
+  "stan": "${STAN}",
+  "iban": "${TIMEOUT_IBAN}",
+  "memberid": "${RECEIVER_BIC}",
+  "idType": "",
+  "idValue": "",
+  "amount": 0.0
+}

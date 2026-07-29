@@ -1,0 +1,32 @@
+{
+  "SenderBic": "CRSMPKKA",
+  "ReceiverBic": "TMICFBPK",
+  "TransactionInfo": {
+    "DateTime": "20260724103000",
+    "PaymentPurpose": "027",
+    "RRN": "${RRN}",
+    "STAN": "${STAN}",
+    "Additional_data1": "bulk-upload",
+    "Additional_data2": "qa-suite"
+  },
+  "BatchInformation": {
+    "BatchId": "NBPA012411765307480277638",
+    "TotalTxns": 1,
+    "BatchDetail": [
+      {
+        "TrackingId": "123",
+        "IBAN": "PK61ABPA0010000019474073",
+        "Name": "Imran",
+        "IdType": "CNIC",
+        "IdValue": "1117361039962",
+        "Narration": "Bulk payment",
+        "Amount": 150,
+        "Currency": "PKR",
+        "STAN": "${STAN}",
+        "RRN": "${RRN}",
+        "reserver_field1": "bulk-upload",
+        "reserver_field2": "qa-suite"
+      }
+    ]
+  }
+}

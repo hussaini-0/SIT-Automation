@@ -1,7 +1,0 @@
-TC_ID,Service,Description,Test_Type,Status,Expected,Actual,Response_Time_ms,Status_Code,API_Name,Bank
-"TC170","cas","One-Step Registration - uid.value exceeds 64 bytes","negative","FAILED","Invalid Request","{""raw"": """"}","38","403","onestep","bank1"
-"TC171","cas","One-Step Registration - Duplicate UID (already registered)","negative","FAILED","Duplicated UID","{""raw"": """"}","11","403","onestep","bank1"
-"TC172","cas","One-Step Registration - Alias already exists","negative","FAILED","Alias already exists","{""raw"": """"}","8","403","onestep","bank1"
-"TC173","cas","One-Step Registration - Duplicated account","negative","FAILED","Duplicated account","{""raw"": """"}","8","403","onestep","bank1"
-"TC174","cas","Dependent: GetDefaultAccount success -> Payment executed","positive","FAILED","getdefaultaccount response_code=00; payment API called and returns success","{""raw"": """"}","8","403","getdefaultaccount","bank1"
-"TC175","cas","Dependent: GetDefaultAccount failure -> no payment attempted","negative","FAILED","getdefaultaccount returns non-00; payment NOT called; verify flow stops","{""raw"": """"}","11","403","getdefaultaccount","bank1"

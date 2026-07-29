@@ -1,0 +1,9 @@
+{
+  "rrn": "${RRN}",
+  "stan": "${STAN}",
+  "iban": "${IBAN_2}",
+  "memberid": "${RECEIVER_BIC}",
+  "idType": "",
+  "idValue": "",
+  "amount": 0.0
+}

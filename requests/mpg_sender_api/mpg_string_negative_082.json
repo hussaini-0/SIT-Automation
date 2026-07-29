@@ -1,0 +1,8 @@
+{
+  "ReceiverBic": "TMICFBPK",
+  "BatchId": "NBPA012411765307480277638",
+  "BatchDateTime": "",
+  "TrackingId": "TRK202607241530000000001",
+  "STAN": "${STAN}",
+  "RRN": "${RRN}"
+}

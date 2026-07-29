@@ -1,7 +1,9 @@
+import argparse
 import copy
 import json
 import os
 import re
+import tempfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -11,49 +13,18 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-from openpyxl import load_workbook
 
+from services.config_service import resolve_yaml_path
+from services.testcase_service import select_testcase_inventory, to_runner_testcase
+from testcase_models import ServiceTestCase, TestCase
 from utils.api_client import ApiClient
 from utils.data_generator import DataGenerator
 from utils.logger import LoggerFactory
+from utils.redaction import redact_sensitive
 from utils.service_manager import ServiceManager
+from utils.stress_runner import load_stress_options, run_stress
 from utils.template_engine import TemplateEngine
 from validators.response_validator import ResponseValidator
-
-
-@dataclass
-class TestCase:
-    """Legacy test case without service awareness."""
-
-    tc_id: str
-    description: str
-    bank: str
-    api_name: str
-    request_file: str
-    expected_result: str
-    validation_type: str
-    execute: str
-    flow_config: str = ""
-    validation_rules: str = ""
-
-
-@dataclass
-class ServiceTestCase:
-    """Service-aware test case with service context."""
-
-    tc_id: str
-    service: str
-    description: str
-    bank: str
-    api_name: str
-    request_file: str
-    expected_result: str
-    validation_type: str
-    execute: str
-    flow_config: str = ""
-    validation_rules: str = ""
-    test_type: str = "positive"
-    trx_type: str = "non-financial"
 
 
 class SITRunner:
@@ -62,23 +33,6 @@ class SITRunner:
         self.config_dir = root_dir / "config"
         self.requests_dir = root_dir / "requests"
         self.testcases_dir = root_dir / "testcases"
-        self.testcase_sources = [
-            {
-                "service": "cas",
-                "file": self.testcases_dir / "sit_testcases.xlsx",
-                "sheet": "SIT",
-            },
-            {
-                "service": "acquiring",
-                "file": self.testcases_dir / "sit_testcases_acquiring.xlsx",
-                "sheet": "ACQUIRING",
-            },
-            {
-                "service": "merchant_cas",
-                "file": self.testcases_dir / "sit_testcases_merchant_cas.xlsx",
-                "sheet": "MERCHANT_CAS",
-            },
-        ]
         self.results_dir = root_dir / "results"
         self.reports_dir = root_dir / "reports"
         self.logs_dir = root_dir / "logs"
@@ -102,10 +56,16 @@ class SITRunner:
 
         # Load user-defined test data variables (config/test_data.yaml)
         test_data_file = self.config_dir / "test_data.yaml"
-        raw_test_data = self._load_yaml(test_data_file) if test_data_file.exists() else {}
+        raw_test_data = self._load_yaml(test_data_file)
+        runtime_test_data_file = self.config_dir / "runtime_test_data.yaml"
+        runtime_test_data = self._load_yaml(runtime_test_data_file) if runtime_test_data_file.exists() else {}
         self.test_data_tokens: Dict[str, str] = {
             str(k).upper(): str(v) for k, v in raw_test_data.items() if v is not None
         }
+        self.test_data_tokens.update(
+            {str(k).upper(): str(v) for k, v in runtime_test_data.items() if v is not None}
+        )
+        self.account_fallbacks = self._load_account_fallbacks(raw_test_data, runtime_test_data)
 
         # Initialize ServiceManager with merged service configuration from
         # servers.yaml (infra/base_url/enabled) and apis.yaml (auth/apis/token_routing).
@@ -180,7 +140,10 @@ class SITRunner:
         return merged
 
     def _load_yaml(self, file_path: Path) -> Dict[str, Any]:
-        with file_path.open("r", encoding="utf-8") as handle:
+        resolved_path = resolve_yaml_path(file_path)
+        if not resolved_path.exists():
+            return {}
+        with resolved_path.open("r", encoding="utf-8") as handle:
             return yaml.safe_load(handle) or {}
 
     def _load_reporting_config(self) -> Dict[str, Any]:
@@ -232,154 +195,96 @@ class SITRunner:
             disabled_list = [s.strip().lower() for s in disabled_services_str.split(",") if s.strip()]
             self.service_manager.apply_env_filter(disabled_services=disabled_list)
 
-    def load_testcases(self) -> List[ServiceTestCase]:
-        """Load testcases from service-specific files/sheets when available."""
-        required = [
-            "TC_ID",
-            "Description",
-            "Bank",
-            "API_Name",
-            "Request_File",
-            "Expected_Result",
-            "Validation_Type",
-            "Execute (Y/N)",
-        ]
+    def load_testcases(
+        self,
+        *,
+        services: Optional[List[str]] = None,
+        apis: Optional[List[str]] = None,
+        testcase_ids: Optional[List[str]] = None,
+        include_disabled: bool = False,
+    ) -> List[ServiceTestCase]:
+        """Load testcases from the shared inventory with optional CLI filters."""
+        records = select_testcase_inventory(
+            services=services,
+            apis=apis,
+            testcase_ids=testcase_ids,
+            include_disabled=include_disabled,
+        )
+        selected_services = {service.strip().lower() for service in services or [] if service and service.strip()}
+        if selected_services:
+            allowed_services = selected_services
+        else:
+            allowed_services = set(self.service_manager.get_services_by_status(enabled_only=True))
 
-        testcases: List[ServiceTestCase] = []
+        filtered_records = [record for record in records if record.service in allowed_services]
+        testcases = [to_runner_testcase(record) for record in filtered_records]
 
-        for source in self.testcase_sources:
-            source_service = str(source["service"])
-            source_file = Path(source["file"])
-            source_sheet = str(source["sheet"])
+        counts_by_service: Dict[str, int] = {}
+        for testcase in testcases:
+            counts_by_service[testcase.service] = counts_by_service.get(testcase.service, 0) + 1
 
-            if not source_file.exists():
-                self.framework_logger.info(
-                    "Testcase source not found, skipping: service=%s file=%s",
-                    source_service,
-                    source_file,
-                )
-                continue
+        for service_id, count in sorted(counts_by_service.items()):
+            self.framework_logger.info("[%s] %d testcase(s) selected", service_id, count)
 
-            workbook = load_workbook(filename=source_file)
-            if source_sheet in workbook.sheetnames:
-                sheet = workbook[source_sheet]
-            else:
-                sheet = workbook.active
-                self.framework_logger.warning(
-                    "Sheet '%s' not found in %s. Using active sheet '%s'.",
-                    source_sheet,
-                    source_file.name,
-                    sheet.title,
-                )
-
-            headers = [str(cell.value).strip() if cell.value else "" for cell in sheet[1]]
-            header_index = {header: idx for idx, header in enumerate(headers)}
-
-            missing = [column for column in required if column not in header_index]
-            if missing:
-                raise ValueError(
-                    f"Missing required columns in Excel '{source_file.name}' sheet '{sheet.title}': {missing}"
-                )
-
-            loaded_for_source = 0
-            for row in sheet.iter_rows(min_row=2, values_only=True):
-                if not any(row):
-                    continue
-
-                service = self._resolve_service_for_row(row, header_index, default_service=source_service)
-
-                if not self.service_manager.is_service_enabled(service):
-                    self.framework_logger.debug(
-                        "Skipped test case (disabled service): tc_id=%s, service=%s",
-                        str(row[header_index["TC_ID"]]).strip(),
-                        service,
-                    )
-                    continue
-
-                service = service.lower()
-                api_name = str(row[header_index.get("API_Name", -1)] or "").strip()
-                explicit_trx_type = (
-                    str(row[header_index.get("Trx_type", -1)] or "").strip()
-                    if "Trx_type" in header_index
-                    else ""
-                )
-                flow_config = (
-                    str(row[header_index.get("Flow_Config", -1)] or "").strip()
-                    if "Flow_Config" in header_index
-                    else ""
-                )
-
-                testcase = ServiceTestCase(
-                    tc_id=str(row[header_index["TC_ID"]]).strip(),
-                    service=service,
-                    description=str(row[header_index.get("Description", -1)] or "").strip(),
-                    bank=str(row[header_index.get("Bank", -1)] or "").strip(),
-                    api_name=api_name,
-                    request_file=str(row[header_index.get("Request_File", -1)] or "").strip(),
-                    expected_result=str(row[header_index.get("Expected_Result", -1)] or "").strip(),
-                    validation_type=str(row[header_index.get("Validation_Type", -1)] or "response").strip(),
-                    execute=str(row[header_index["Execute (Y/N)"]]).strip().upper(),
-                    flow_config=flow_config,
-                    validation_rules=str(row[header_index.get("Validation_Rules", -1)] or "").strip()
-                    if "Validation_Rules" in header_index
-                    else "",
-                    test_type=str(row[header_index.get("Test_Type", -1)] or "positive").strip().lower()
-                    if "Test_Type" in header_index
-                    else "positive",
-                    trx_type=self._resolve_trx_type(service, api_name, flow_config, explicit_trx_type),
-                )
-                if testcase.execute == "Y":
-                    testcases.append(testcase)
-                    loaded_for_source += 1
-
-            self.framework_logger.info(
-                "Loaded %d testcase(s) from service=%s, file=%s, sheet=%s",
-                loaded_for_source,
-                source_service,
-                source_file.name,
-                sheet.title,
-            )
+        if not testcases:
+            self.framework_logger.warning("No testcases matched the current runner filters.")
 
         return testcases
 
-    def _get_token_for_api(self, api_name: str, service: str = "cas") -> str:
-        """Get token for API, with service context awareness."""
-        token_routing = self.service_manager.get_service_token_routing(service)
-        if api_name in token_routing:
-            channel_or_key = token_routing[api_name]
-            return self.service_token_context.get(service, {}).get(channel_or_key, "")
-        return self.service_token_context.get(service, {}).get("default", "")
+    @staticmethod
+    def _token_context_key(bank_name: str, token_key: str) -> str:
+        bank = str(bank_name or "default").strip().lower() or "default"
+        key = str(token_key or "default").strip() or "default"
+        return f"{bank}:{key}"
 
-    def run(self) -> None:
+    def _get_token_for_api(self, api_name: str, service: str = "cas", bank_name: str = "") -> str:
+        """Get token for API, scoped by service, bank, and token route."""
+        token_routing = self.service_manager.get_service_token_routing(service)
+        channel_or_key = token_routing[api_name] if api_name in token_routing else "default"
+        context_key = self._token_context_key(bank_name, channel_or_key)
+        service_tokens = self.service_token_context.get(service, {})
+        return service_tokens.get(context_key) or service_tokens.get(str(channel_or_key), "")
+
+    def run(
+        self,
+        *,
+        services: Optional[List[str]] = None,
+        apis: Optional[List[str]] = None,
+        testcase_ids: Optional[List[str]] = None,
+        include_disabled: bool = False,
+        max_workers: Optional[int] = None,
+    ) -> None:
         started_at = datetime.now()
         self.framework_logger.info("Execution started at %s", started_at.isoformat())
 
-        max_workers = int(os.getenv("MAX_WORKERS", "4"))
-        testcases = self.load_testcases()
-        
-        # Group testcases by service
+        worker_count = max(1, int(max_workers if max_workers is not None else os.getenv("MAX_WORKERS", "4")))
+        testcases = self.load_testcases(
+            services=services,
+            apis=apis,
+            testcase_ids=testcase_ids,
+            include_disabled=include_disabled,
+        )
+
         testcases_by_service = {}
         for tc in testcases:
             if tc.service not in testcases_by_service:
                 testcases_by_service[tc.service] = []
             testcases_by_service[tc.service].append(tc)
-        
-        # Log test case counts per service
-        for service, tcs in testcases_by_service.items():
-            self.framework_logger.info("[%s] %d test cases loaded", service, len(tcs))
-        
+
         results: List[Dict[str, Any]] = []
         lock = threading.Lock()
-        
-        # Execute per service, handling auth within each service context
-        for service in self.service_manager.get_services_by_status(enabled_only=True):
+
+        requested_services = [service.strip().lower() for service in services or [] if service and service.strip()]
+        service_order = requested_services or self.service_manager.get_services_by_status(enabled_only=True)
+        for service in service_order:
             if service not in testcases_by_service:
                 continue
-            
+
             service_testcases = testcases_by_service[service]
             auth_api_names = self._auth_api_names(service)
             auth_testcases = [tc for tc in service_testcases if tc.api_name in auth_api_names]
             non_auth_testcases = [tc for tc in service_testcases if tc.api_name not in auth_api_names]
+            auth_testcases.sort(key=lambda tc: self._tc_order_key(tc.tc_id))
             independent_testcases = [
                 tc for tc in non_auth_testcases if not self._is_sequential_testcase(tc.tc_id)
             ]
@@ -387,27 +292,24 @@ class SITRunner:
                 tc for tc in non_auth_testcases if self._is_sequential_testcase(tc.tc_id)
             ]
             sequential_testcases.sort(key=lambda tc: self._tc_order_key(tc.tc_id))
-            
-            # Execute auth test cases sequentially
             for auth_tc in auth_testcases:
-                auth_result = self.execute_testcase(auth_tc)
+                auth_result = self.execute_testcase(auth_tc, capture_auth_token=False)
                 results.append(auth_result)
                 if auth_result.get("status") != "PASSED":
                     self.framework_logger.warning(
-                        "[%s] Auth testcase failed. tc_id=%s. Subsequent APIs may run without bearer token.",
+                        "[%s] Auth testcase failed. tc_id=%s. Reusable API token is generated separately when needed.",
                         service,
                         auth_tc.tc_id,
                     )
-            
-            # Execute independent non-auth test cases in parallel.
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            if non_auth_testcases:
+                self._bootstrap_reusable_auth_tokens(service, auth_api_names, non_auth_testcases)
+            with ThreadPoolExecutor(max_workers=worker_count) as executor:
                 futures = [executor.submit(self.execute_testcase, testcase) for testcase in independent_testcases]
                 for future in as_completed(futures):
                     result = future.result()
                     with lock:
                         results.append(result)
 
-            # Execute dependent test cases strictly in sequence.
             for sequential_tc in sequential_testcases:
                 result = self.execute_testcase(sequential_tc)
                 results.append(result)
@@ -422,12 +324,19 @@ class SITRunner:
         finished_at = datetime.now()
         summary = self._build_summary(results)
         run_tag = finished_at.strftime("%Y%m%d_%H%M%S")
-        self._write_results_json(run_tag, results, summary)
-        self._write_results_csv(run_tag, results)
-        self._write_html_report(run_tag, results, summary, started_at, finished_at)
+        artifact_tag = self._build_service_artifact_tag(results)
+        self._write_results_json(run_tag, results, summary, artifact_tag=artifact_tag)
+        self._write_results_csv(run_tag, results, artifact_tag=artifact_tag)
+        self._write_html_report(run_tag, results, summary, started_at, finished_at, artifact_tag=artifact_tag)
         self.framework_logger.info("Execution completed. Summary=%s", summary)
 
-    def execute_testcase(self, testcase: ServiceTestCase) -> Dict[str, Any]:
+    def execute_testcase(
+        self,
+        testcase: ServiceTestCase,
+        *,
+        capture_auth_token: bool = True,
+        force_auth_token: bool = False,
+    ) -> Dict[str, Any]:
         """Execute a service test case with service context awareness."""
         try:
             bank_base_url = self._get_bank_base_url(testcase.bank, testcase.service)
@@ -436,17 +345,26 @@ class SITRunner:
             if testcase.flow_config:
                 return self._execute_flow_testcase(testcase, bank_base_url)
 
-            payload = self._render_payload(testcase.request_file, extra_tokens={}, service=testcase.service)
-            url = self._build_url(bank_base_url, api_definition["endpoint"])
-            headers = self._build_request_headers(api_definition, testcase.api_name, testcase.service)
-            response = self.api_client.call(
-                method=str(api_definition["method"]).upper(),
-                url=url,
+            payload = self._render_payload(
+                testcase.request_file,
+                extra_tokens={},
+                service=testcase.service,
+                bank_name=testcase.bank,
+            )
+            endpoint = self._apply_endpoint_params(str(api_definition["endpoint"]), payload)
+            url = self._build_url(bank_base_url, endpoint)
+            headers = self._build_request_headers(api_definition, testcase.api_name, testcase.service, testcase.bank)
+            payload, response = self._call_api_with_account_fallback(
+                testcase=testcase,
+                api_definition=api_definition,
+                bank_base_url=bank_base_url,
+                endpoint_template=str(api_definition["endpoint"]),
                 payload=payload,
                 headers=headers,
             )
 
-            self._capture_auth_token_if_configured(testcase, response)
+            if capture_auth_token:
+                self._capture_auth_token_if_configured(testcase, response, force=force_auth_token)
 
             validation_rules = self._parse_json_object(testcase.validation_rules)
             validation = self.validator.validate(
@@ -515,10 +433,18 @@ class SITRunner:
         initial_api_name = flow.get("initial_api", testcase.api_name)
         initial_request_file = flow.get("initial_request_file", testcase.request_file)
         initial_api_definition = self._get_api_definition(initial_api_name, testcase.service)
-        initial_payload = self._render_payload(initial_request_file, extra_tokens={}, service=testcase.service)
-        initial_url = self._build_url(bank_base_url, initial_api_definition["endpoint"])
+        initial_payload = self._render_payload(
+            initial_request_file,
+            extra_tokens={},
+            service=testcase.service,
+            bank_name=testcase.bank,
+        )
+        initial_endpoint = self._apply_endpoint_params(str(initial_api_definition["endpoint"]), initial_payload)
+        initial_url = self._build_url(bank_base_url, initial_endpoint)
 
-        initial_headers = self._build_request_headers(initial_api_definition, initial_api_name, testcase.service)
+        initial_headers = self._build_request_headers(
+            initial_api_definition, initial_api_name, testcase.service, testcase.bank
+        )
         initial_response = self.api_client.call(
             method=str(initial_api_definition["method"]).upper(),
             url=initial_url,
@@ -534,6 +460,7 @@ class SITRunner:
                 polling_definition=polling_definition,
                 initial_response=initial_response,
                 service=testcase.service,
+                bank_name=testcase.bank,
             )
 
             validation = self.validator.validate(
@@ -605,9 +532,17 @@ class SITRunner:
                     raise ValueError("on_success flow must define next_api and next_request_file")
 
                 next_api_definition = self._get_api_definition(next_api_name, testcase.service)
-                next_payload = self._render_payload(next_request_file, extra_tokens=extra_tokens, service=testcase.service)
-                next_url = self._build_url(bank_base_url, next_api_definition["endpoint"])
-                next_headers = self._build_request_headers(next_api_definition, next_api_name, testcase.service)
+                next_payload = self._render_payload(
+                    next_request_file,
+                    extra_tokens=extra_tokens,
+                    service=testcase.service,
+                    bank_name=testcase.bank,
+                )
+                next_endpoint = self._apply_endpoint_params(str(next_api_definition["endpoint"]), next_payload)
+                next_url = self._build_url(bank_base_url, next_endpoint)
+                next_headers = self._build_request_headers(
+                    next_api_definition, next_api_name, testcase.service, testcase.bank
+                )
                 next_response = self.api_client.call(
                     method=str(next_api_definition["method"]).upper(),
                     url=next_url,
@@ -692,6 +627,7 @@ class SITRunner:
         polling_definition: Dict[str, Any],
         initial_response: Dict[str, Any],
         service: str = "cas",
+        bank_name: str = "",
     ) -> Dict[str, Any]:
         """Poll for final status with service context awareness."""
         polling_api_name = polling_definition.get("api")
@@ -714,7 +650,12 @@ class SITRunner:
                 extra_tokens["TRANSACTION_ID"] = str(correlation_value)
 
             polling_payload = (
-                self._render_payload(request_file, extra_tokens=extra_tokens, service=service)
+                self._render_payload(
+                    request_file,
+                    extra_tokens=extra_tokens,
+                    service=service,
+                    bank_name=bank_name,
+                )
                 if request_file
                 else {}
             )
@@ -722,8 +663,11 @@ class SITRunner:
             if correlation_target_path and correlation_value is not None:
                 self._set_path_value(polling_payload, correlation_target_path, correlation_value)
 
-            poll_url = self._build_url(bank_base_url, api_definition["endpoint"])
-            polling_headers = self._build_request_headers(api_definition, polling_api_name, service)
+            poll_endpoint = self._apply_endpoint_params(str(api_definition["endpoint"]), polling_payload)
+            poll_url = self._build_url(bank_base_url, poll_endpoint)
+            polling_headers = self._build_request_headers(
+                api_definition, polling_api_name, service, bank_name
+            )
             response = self.api_client.call(
                 method=str(api_definition["method"]).upper(),
                 url=poll_url,
@@ -764,7 +708,25 @@ class SITRunner:
         contains = str(stop_when.get("contains", "")).strip()
         return bool(contains and contains in str(response.get("text", "")))
 
-    def _render_payload(self, request_file_name: str, extra_tokens: Dict[str, str], service: str = "cas") -> Dict[str, Any]:
+    def _bank_test_data_tokens(self, bank_name: str) -> Dict[str, str]:
+        try:
+            _, bank_config = self._resolve_bank_config(bank_name)
+        except ValueError:
+            return {}
+        if not isinstance(bank_config, dict):
+            return {}
+        bank_test_data = bank_config.get("test_data", {})
+        if not isinstance(bank_test_data, dict):
+            return {}
+        return {str(key).upper(): str(value) for key, value in bank_test_data.items() if value is not None}
+
+    def _render_payload(
+        self,
+        request_file_name: str,
+        extra_tokens: Dict[str, str],
+        service: str = "cas",
+        bank_name: str = "",
+    ) -> Dict[str, Any]:
         if not request_file_name:
             return {}
         request_file_path = self.requests_dir / service / request_file_name
@@ -772,24 +734,295 @@ class SITRunner:
             request_file_path = self.requests_dir / request_file_name
         template = TemplateEngine.load_json_template(request_file_path)
         template_tokens = TemplateEngine.extract_placeholders(template)
-        overridden_tokens = set(self.test_data_tokens) | {str(key).upper() for key in extra_tokens}
+        bank_tokens = self._bank_test_data_tokens(bank_name)
+        overridden_tokens = set(self.test_data_tokens) | set(bank_tokens) | {str(key).upper() for key in extra_tokens}
         values = DataGenerator.default_tokens(template_tokens - overridden_tokens)
         values.update(self.test_data_tokens)   # user-defined variables from test_data.yaml
+        values.update(bank_tokens)             # selected bank overrides shared values
         values.update(extra_tokens)            # call-site overrides take highest priority
         rendered = TemplateEngine.render_template(template, values)
         return rendered
 
     def _build_request_headers(
-        self, api_definition: Dict[str, Any], api_name: str = "", service: str = "cas"
+        self, api_definition: Dict[str, Any], api_name: str = "", service: str = "cas", bank_name: str = ""
     ) -> Dict[str, str]:
         """Build request headers with service-aware token injection."""
         headers = dict(api_definition.get("headers", {}))
-        token_value = self._get_token_for_api(api_name, service) if api_name else ""
+        token_value = self._get_token_for_api(api_name, service, bank_name) if api_name else ""
         if token_value:
             headers["Authorization"] = f"Bearer {token_value}"
         return headers
 
-    def _capture_auth_token_if_configured(self, testcase: ServiceTestCase, response: Dict[str, Any]) -> None:
+    def _load_account_fallbacks(self, *sources: Dict[str, Any]) -> List[Dict[str, str]]:
+        accounts: List[Dict[str, str]] = []
+        seen_ibans: set[str] = set()
+        for source in sources:
+            if not isinstance(source, dict):
+                continue
+            configured_accounts = source.get("account_fallbacks", [])
+            if not isinstance(configured_accounts, list):
+                continue
+            for entry in configured_accounts:
+                if not isinstance(entry, dict):
+                    continue
+                iban = str(entry.get("iban", "")).strip().upper()
+                bic = str(entry.get("bic", "")).strip().upper()
+                if not iban or iban in seen_ibans:
+                    continue
+                seen_ibans.add(iban)
+                accounts.append({"iban": iban, "bic": bic})
+        return accounts
+
+    def _call_api_with_account_fallback(
+        self,
+        *,
+        testcase: ServiceTestCase,
+        api_definition: Dict[str, Any],
+        bank_base_url: str,
+        endpoint_template: str,
+        payload: Dict[str, Any],
+        headers: Dict[str, str],
+    ) -> tuple[Dict[str, Any], Dict[str, Any]]:
+        current_payload = payload
+        current_endpoint = self._apply_endpoint_params(endpoint_template, current_payload)
+        current_url = self._build_url(bank_base_url, current_endpoint)
+        response = self.api_client.call(
+            method=str(api_definition["method"]).upper(),
+            url=current_url,
+            payload=current_payload,
+            headers=headers,
+        )
+
+        if not self._should_retry_closed_account(testcase, current_payload, response):
+            return current_payload, response
+
+        tried_ibans = self._collect_payload_ibans(current_payload)
+        last_response = response
+        for fallback_account in self.account_fallbacks:
+            fallback_iban = fallback_account.get("iban", "")
+            if not fallback_iban or fallback_iban in tried_ibans:
+                continue
+
+            retry_payload = copy.deepcopy(current_payload)
+            if not self._apply_account_fallback(retry_payload, fallback_account):
+                continue
+
+            tried_ibans.update(self._collect_payload_ibans(retry_payload))
+            retry_endpoint = self._apply_endpoint_params(endpoint_template, retry_payload)
+            retry_url = self._build_url(bank_base_url, retry_endpoint)
+            self.framework_logger.warning(
+                "[%s] Closed/inactive account detected for tc_id=%s. Retrying %s with fallback IBAN %s",
+                testcase.service,
+                testcase.tc_id,
+                testcase.api_name,
+                fallback_iban,
+            )
+            last_response = self.api_client.call(
+                method=str(api_definition["method"]).upper(),
+                url=retry_url,
+                payload=retry_payload,
+                headers=headers,
+            )
+            current_payload = retry_payload
+            if not self._should_retry_closed_account(testcase, current_payload, last_response):
+                return current_payload, last_response
+
+        return current_payload, last_response
+
+    def _should_retry_closed_account(
+        self,
+        testcase: ServiceTestCase,
+        payload: Dict[str, Any],
+        response: Dict[str, Any],
+    ) -> bool:
+        if str(testcase.test_type or "").strip().lower() != "positive":
+            return False
+        if not self.account_fallbacks:
+            return False
+        if not self._collect_payload_ibans(payload):
+            return False
+
+        response_desc = str(self._get_path_value(response.get("body", {}), "response.response_desc") or "").lower()
+        response_code = str(self._get_path_value(response.get("body", {}), "response.response_code") or "").strip()
+        response_text = str(response.get("text", "") or "").lower()
+        combined_text = " ".join(part for part in [response_desc, response_text] if part)
+
+        if response_code == "00":
+            return False
+
+        closed_account_terms = (
+            "account inactive",
+            "account inactive",
+            "account is inactive",
+            "inactive account",
+            "account closed",
+            "closed account",
+            "account dormant",
+            "dormant account",
+        )
+        return any(term in combined_text for term in closed_account_terms)
+
+    def _collect_payload_ibans(self, payload: Any) -> set[str]:
+        ibans: set[str] = set()
+        if isinstance(payload, dict):
+            for key, value in payload.items():
+                key_lower = str(key).lower()
+                if key_lower in {"sender_iban", "receiver_iban", "iban"} and isinstance(value, str):
+                    stripped = value.strip().upper()
+                    if stripped:
+                        ibans.add(stripped)
+                else:
+                    ibans.update(self._collect_payload_ibans(value))
+        elif isinstance(payload, list):
+            for item in payload:
+                ibans.update(self._collect_payload_ibans(item))
+        return ibans
+
+    def _apply_account_fallback(self, payload: Dict[str, Any], fallback_account: Dict[str, str]) -> bool:
+        changed = self._replace_account_fields(payload, fallback_account, mode="sender")
+        if not changed:
+            changed = self._replace_account_fields(payload, fallback_account, mode="generic")
+        if not changed:
+            changed = self._replace_account_fields(payload, fallback_account, mode="receiver")
+        return changed
+
+    def _replace_account_fields(
+        self,
+        payload: Any,
+        fallback_account: Dict[str, str],
+        *,
+        mode: str,
+    ) -> bool:
+        fallback_iban = str(fallback_account.get("iban", "")).strip().upper()
+        fallback_bic = str(fallback_account.get("bic", "")).strip().upper()
+        changed = False
+
+        def walk(node: Any, parent_key: str = "") -> None:
+            nonlocal changed
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    key_lower = str(key).lower()
+                    if isinstance(value, dict):
+                        walk(value, key_lower)
+                        continue
+                    if isinstance(value, list):
+                        walk(value, key_lower)
+                        continue
+                    if not isinstance(value, str):
+                        continue
+
+                    if mode == "sender" and key_lower == "sender_iban" and value.strip().upper() != fallback_iban:
+                        node[key] = fallback_iban
+                        changed = True
+                    elif mode == "generic" and key_lower == "iban" and value.strip().upper() != fallback_iban:
+                        node[key] = fallback_iban
+                        changed = True
+                    elif mode == "receiver" and key_lower == "receiver_iban" and value.strip().upper() != fallback_iban:
+                        node[key] = fallback_iban
+                        changed = True
+                    elif (
+                        fallback_bic
+                        and mode == "receiver"
+                        and key_lower == "receiver_participant_code"
+                        and value.strip().upper() != fallback_bic
+                    ):
+                        node[key] = fallback_bic
+                        changed = True
+                    elif (
+                        fallback_bic
+                        and mode == "generic"
+                        and parent_key == "servicer"
+                        and key_lower == "memberid"
+                        and value.strip().upper() != fallback_bic
+                    ):
+                        node[key] = fallback_bic
+                        changed = True
+            elif isinstance(node, list):
+                for item in node:
+                    walk(item, parent_key)
+
+        walk(payload)
+        return changed
+
+    def _bootstrap_reusable_auth_tokens(
+        self,
+        service: str,
+        auth_api_names: List[str],
+        non_auth_testcases: List[ServiceTestCase],
+    ) -> None:
+        """Generate fresh auth tokens for every token route needed by selected APIs."""
+        testcases_by_bank: Dict[str, List[ServiceTestCase]] = {}
+        for testcase in non_auth_testcases:
+            bank = str(testcase.bank or "default").strip() or "default"
+            testcases_by_bank.setdefault(bank, []).append(testcase)
+
+        for bank_name, bank_testcases in sorted(testcases_by_bank.items()):
+            required_keys = self._required_token_keys_for_testcases(service, bank_testcases)
+            if not required_keys:
+                continue
+
+            for token_key in required_keys:
+                context_key = self._token_context_key(bank_name, token_key)
+                if self.service_token_context.get(service, {}).get(context_key):
+                    continue
+
+                bootstrap_auth = self._find_positive_auth_testcase(
+                    service,
+                    auth_api_names,
+                    channel_key=None if token_key == "default" else token_key,
+                    bank_name=bank_name,
+                )
+                if not bootstrap_auth:
+                    self.framework_logger.warning(
+                        "[%s] No positive auth testcase found for bank '%s' token route '%s'. Matching APIs may run without bearer token.",
+                        service,
+                        bank_name,
+                        token_key,
+                    )
+                    continue
+
+                bootstrap_result = self.execute_testcase(
+                    bootstrap_auth,
+                    capture_auth_token=True,
+                    force_auth_token=True,
+                )
+                if bootstrap_result.get("status_code") is None:
+                    self.framework_logger.warning(
+                        "[%s] Bootstrap auth failed for bank '%s' route '%s' using tc_id=%s. Matching APIs may run without bearer token.",
+                        service,
+                        bank_name,
+                        token_key,
+                        bootstrap_auth.tc_id,
+                    )
+                    continue
+                if not self.service_token_context.get(service, {}).get(context_key):
+                    self.framework_logger.warning(
+                        "[%s] Bootstrap auth completed but no reusable bank '%s' route '%s' token was captured from tc_id=%s.",
+                        service,
+                        bank_name,
+                        token_key,
+                        bootstrap_auth.tc_id,
+                    )
+
+    def _required_token_keys_for_testcases(
+        self,
+        service: str,
+        testcases: List[ServiceTestCase],
+    ) -> List[str]:
+        token_routing = self.service_manager.get_service_token_routing(service)
+        keys = {
+            str(token_routing.get(testcase.api_name, "default")).strip() or "default"
+            for testcase in testcases
+        }
+        return sorted(keys)
+
+    def _capture_auth_token_if_configured(
+        self,
+        testcase: ServiceTestCase,
+        response: Dict[str, Any],
+        *,
+        force: bool = False,
+    ) -> None:
         """Capture and store auth token with service context awareness."""
         auth_api_names = self._auth_api_names(testcase.service)
         if testcase.api_name not in auth_api_names:
@@ -813,23 +1046,112 @@ class SITRunner:
             )
             return
 
+        if not self._is_success_response(response):
+            self.framework_logger.info(
+                "[%s] Auth token ignored from tc_id=%s because response status was %s",
+                testcase.service,
+                testcase.tc_id,
+                response.get("status_code"),
+            )
+            return
+
+        if str(testcase.test_type or "").strip().lower() != "positive":
+            self.framework_logger.info(
+                "[%s] Auth token ignored from tc_id=%s because testcase is %s",
+                testcase.service,
+                testcase.tc_id,
+                testcase.test_type,
+            )
+            return
+
         token_str = str(token_value)
-        self.runtime_context["auth_token"] = token_str
 
         channel_key = self._extract_channel_key(testcase)
         if channel_key:
-            self.service_token_context[testcase.service][channel_key] = token_str
+            context_key = self._token_context_key(testcase.bank, channel_key)
+            if self.service_token_context[testcase.service].get(context_key) and not force:
+                self.framework_logger.info(
+                    "[%s] Reusing existing auth token for bank=%s channel=%s; tc_id=%s did not overwrite it.",
+                    testcase.service,
+                    testcase.bank,
+                    channel_key,
+                    testcase.tc_id,
+                )
+                return
+            self._save_auth_token(testcase.service, testcase.bank, channel_key, token_str)
             self.framework_logger.info(
-                "[%s] Auth token captured from tc_id=%s for channel=%s",
+                "[%s] Auth token captured from tc_id=%s for bank=%s channel=%s",
                 testcase.service,
                 testcase.tc_id,
+                testcase.bank,
                 channel_key,
             )
         else:
-            self.service_token_context[testcase.service]["default"] = token_str
+            context_key = self._token_context_key(testcase.bank, "default")
+            if self.service_token_context[testcase.service].get(context_key) and not force:
+                self.framework_logger.info(
+                    "[%s] Reusing existing default auth token for bank=%s; tc_id=%s did not overwrite it.",
+                    testcase.service,
+                    testcase.bank,
+                    testcase.tc_id,
+                )
+                return
+            self._save_auth_token(testcase.service, testcase.bank, "default", token_str)
             self.framework_logger.info(
-                "[%s] Auth token captured from tc_id=%s as default token", testcase.service, testcase.tc_id
+                "[%s] Auth token captured from tc_id=%s as default token for bank=%s",
+                testcase.service,
+                testcase.tc_id,
+                testcase.bank,
             )
+
+    def _save_auth_token(self, service: str, bank_name: str, key: str, token: str) -> None:
+        """Save a reusable auth token in memory for the current runner execution."""
+        context_key = self._token_context_key(bank_name, key)
+        self.service_token_context[service][context_key] = token
+        self.runtime_context["auth_token"] = token
+        self.runtime_context[f"{service}_{bank_name}_{key}_auth_token"] = token
+
+    def _has_auth_token_for_service(self, service: str) -> bool:
+        return any(bool(token) for token in self.service_token_context.get(service, {}).values())
+
+    @staticmethod
+    def _is_success_response(response: Dict[str, Any]) -> bool:
+        status_code = response.get("status_code")
+        return isinstance(status_code, int) and 200 <= status_code < 300
+
+    def _find_positive_auth_testcase(
+        self,
+        service: str,
+        auth_api_names: List[str],
+        channel_key: Optional[str] = None,
+        bank_name: str = "",
+    ) -> Optional[ServiceTestCase]:
+        """Find one enabled positive auth testcase for an optional channel."""
+        records = select_testcase_inventory(
+            services=[service],
+            include_disabled=False,
+        )
+        candidates = []
+        fallback_candidates = []
+        for record in records:
+            if record.api_name not in auth_api_names or record.test_type != "positive":
+                continue
+            testcase = to_runner_testcase(record)
+            if channel_key and self._extract_channel_key(testcase) != channel_key:
+                continue
+            if bank_name and record.bank and record.bank.strip().lower() != bank_name.strip().lower():
+                fallback_candidates.append(testcase)
+                continue
+            candidates.append(testcase)
+        candidates.sort(key=lambda tc: self._tc_order_key(tc.tc_id))
+        if candidates:
+            return candidates[0]
+        fallback_candidates.sort(key=lambda tc: self._tc_order_key(tc.tc_id))
+        if fallback_candidates and bank_name:
+            testcase = copy.deepcopy(fallback_candidates[0])
+            testcase.bank = bank_name
+            return testcase
+        return None
 
     def _extract_channel_key(self, testcase: ServiceTestCase) -> str:
         """Extract channel key from request file payload."""
@@ -863,124 +1185,72 @@ class SITRunner:
             return ["authenticate"]
         return [str(name).strip() for name in configured_names if str(name).strip()]
 
-    def _resolve_service_for_row(
-        self,
-        row: Any,
-        header_index: Dict[str, int],
-        default_service: str = "cas",
-    ) -> str:
-        """Resolve service for a testcase row.
+    def _resolve_bank_config(self, bank_name: str) -> tuple[str, Any]:
+        banks = self.server_config.get("banks", {})
+        bank_key = str(bank_name or "").strip()
+        if not bank_key:
+            return "", {}
+        if bank_key not in banks:
+            lowered = {str(key).lower(): key for key in banks}
+            bank_key = str(lowered.get(bank_key.lower(), bank_key))
+        if bank_key not in banks:
+            available = ", ".join(sorted(str(key) for key in banks)) or "none"
+            raise ValueError(f"Unknown bank in servers.yaml: {bank_name}. Available banks: {available}")
 
-        Priority:
-        1. Explicit Service column when present.
-        2. Request file name hints.
-        3. API name unique to one configured service.
-        4. Source default fallback.
-        """
-        if "Service" in header_index:
-            service_value = str(row[header_index["Service"]] or "").strip().lower()
-            if service_value:
-                return service_value
+        bank_config = banks[bank_key]
+        visited = {bank_key}
+        while isinstance(bank_config, dict) and bank_config.get("alias_for"):
+            alias_key = str(bank_config["alias_for"]).strip()
+            if alias_key in visited:
+                raise ValueError(f"Circular bank alias in servers.yaml: {' -> '.join(sorted(visited))}")
+            if alias_key not in banks:
+                raise ValueError(f"Bank alias '{bank_key}' points to unknown bank '{alias_key}'")
+            visited.add(alias_key)
+            bank_key = alias_key
+            bank_config = banks[bank_key]
+        return bank_key, bank_config
 
-        request_file = str(row[header_index.get("Request_File", -1)] or "").strip().lower()
-        api_name = str(row[header_index.get("API_Name", -1)] or "").strip().lower()
-
-        request_hints = [
-            ("acq", "acquiring"),
-            ("acquiring", "acquiring"),
-            ("mcas", "merchant_cas"),
-            ("merchant", "merchant_cas"),
-            ("merchant_cas", "merchant_cas"),
-        ]
-        for token, service_id in request_hints:
-            if token in request_file:
-                return service_id
-
-        matching_services = []
-        for service_id in self.service_manager.get_services_by_status(enabled_only=False):
-            service_apis = self.service_manager.get_service_apis(service_id)
-            if api_name and api_name in service_apis:
-                matching_services.append(service_id)
-
-        if len(matching_services) == 1:
-            return matching_services[0]
-
-        return default_service
-
-    def _resolve_trx_type(
-        self,
-        service: str,
-        api_name: str,
-        flow_config: str = "",
-        explicit_trx_type: str = "",
-    ) -> str:
-        normalized = str(explicit_trx_type or "").strip().lower().replace("_", "-")
-        normalized = re.sub(r"\s+", "-", normalized)
-
-        if normalized in {"financial", "non-financial"}:
-            return normalized
-        if normalized == "non-financial":
-            return "non-financial"
-        if normalized == "non-financial":
-            return "non-financial"
-        if normalized in {"financial-negative", "financial-positive", "non-financial-negative", "non-financial-positive"}:
-            return normalized
-        if normalized and re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", normalized):
-            return normalized
-
-        service_id = str(service or "").strip().lower()
-        api_key = str(api_name or "").strip().lower()
-        flow_apis = self._flow_api_names(service_id, flow_config)
-        api_names = {api_key, *flow_apis}
-
-        if service_id == "merchant_cas":
-            return "non-financial" if api_key == "authenticate" else "financial"
-
-        if service_id == "cas":
-            for candidate in api_names:
-                if "payment" in candidate or "directposting" in candidate:
-                    return "financial"
-            return "non-financial"
-
-        return "non-financial"
-
-    def _flow_api_names(self, service: str, flow_config: str) -> set:
-        if not flow_config:
-            return set()
-        service_flows = self.service_api_config.get(service, {}).get("flows", {})
-        flow = service_flows.get(flow_config, {})
-        names = {
-            str(flow.get("initial_api", "")).strip().lower(),
-            str((flow.get("polling") or {}).get("api", "")).strip().lower(),
-            str((flow.get("on_success") or {}).get("next_api", "")).strip().lower(),
-            str((flow.get("next") or {}).get("next_api", "")).strip().lower(),
-        }
-        return {name for name in names if name}
+    @staticmethod
+    def _base_url_from_service_entry(service_entry: Any) -> str:
+        if isinstance(service_entry, dict):
+            return str(service_entry.get("base_url", "")).strip()
+        return str(service_entry or "").strip()
 
     def _get_bank_base_url(self, bank_name: str, service: str = "cas") -> str:
-        """Get base URL with service priority, then bank fallback mapping."""
+        """Resolve base URL by bank + service, then fall back to service defaults."""
+        bank_key, bank_config = self._resolve_bank_config(bank_name)
+
+        if isinstance(bank_config, dict):
+            service_urls = bank_config.get("services", {})
+            if isinstance(service_urls, dict) and service in service_urls:
+                base_url = self._base_url_from_service_entry(service_urls[service])
+                if base_url:
+                    return base_url
+
+            # Backward compatibility: old bank mapping with service/base_url.
+            mapped_service = str(bank_config.get("service", "")).strip()
+            if mapped_service and mapped_service == service:
+                base_url = str(bank_config.get("base_url", "")).strip()
+                if base_url:
+                    return base_url
+
+            # Backward compatibility: old bank mapping with a direct base_url.
+            if "base_url" in bank_config and not service_urls:
+                base_url = str(bank_config.get("base_url", "")).strip()
+                if base_url:
+                    return base_url
+        elif bank_config:
+            return str(bank_config).strip()
+
+        if bank_name:
+            bank_label = bank_key or bank_name
+            raise ValueError(f"No base_url configured for bank '{bank_label}' and service '{service}'")
+
         service_base_url = self.service_manager.get_service_base_url(service)
         if service_base_url:
             return service_base_url
 
-        banks = self.server_config.get("banks", {})
-        if bank_name not in banks:
-            raise ValueError(f"Unknown bank in servers.yaml: {bank_name}")
-        
-        bank_config = banks[bank_name]
-        
-        # If bank mapping includes service, use that
-        if isinstance(bank_config, dict) and "service" in bank_config:
-            service = bank_config.get("service", "cas")
-            base_url = self.service_manager.get_service_base_url(service)
-            if base_url:
-                return base_url
-        
-        # Otherwise use direct base_url from bank config
-        base_url = str(bank_config.get("base_url", "") if isinstance(bank_config, dict) else bank_config).strip()
-        if not base_url:
-            raise ValueError(f"Empty base_url for bank: {bank_name}")
-        return base_url
+        raise ValueError(f"No base_url configured for service '{service}'")
 
     def _get_api_definition(self, api_name: str, service: str = "cas") -> Dict[str, Any]:
         """Get API definition with service context awareness."""
@@ -1003,6 +1273,22 @@ class SITRunner:
     @staticmethod
     def _build_url(base_url: str, endpoint: str) -> str:
         return base_url.rstrip("/") + "/" + endpoint.lstrip("/")
+
+    def _apply_endpoint_params(self, endpoint: str, payload: Any) -> str:
+        """Replace endpoint placeholders like {batchId} from the rendered payload."""
+        def replace(match: re.Match[str]) -> str:
+            field_name = match.group(1)
+            value = self._get_path_value(payload, field_name)
+            if value is None or str(value).strip() == "":
+                self.framework_logger.warning(
+                    "Endpoint parameter '%s' was not found in payload for endpoint=%s",
+                    field_name,
+                    endpoint,
+                )
+                return match.group(0)
+            return str(value)
+
+        return re.sub(r"\{([^{}]+)\}", replace, endpoint)
 
     @staticmethod
     def _tc_order_key(tc_id: str) -> int:
@@ -1049,14 +1335,20 @@ class SITRunner:
             current = current[part]
         current[parts[-1]] = value
 
-    def _write_results_json(self, run_tag: str, results: List[Dict[str, Any]], summary: Dict[str, Any]) -> None:
-        output = {"run_tag": run_tag, "summary": summary, "results": results}
-        output_file = self.results_dir / f"results_{run_tag}.json"
-        with output_file.open("w", encoding="utf-8") as handle:
-            json.dump(output, handle, ensure_ascii=False, indent=2)
+    def _write_results_json(
+        self,
+        run_tag: str,
+        results: List[Dict[str, Any]],
+        summary: Dict[str, Any],
+        *,
+        artifact_tag: str = "",
+    ) -> None:
+        output = {"run_tag": run_tag, "summary": summary, "results": redact_sensitive(results)}
+        output_file = self.results_dir / self._artifact_file_name("results", run_tag, "json", artifact_tag)
+        self._atomic_write_text(output_file, json.dumps(output, ensure_ascii=False, indent=2))
 
-    def _write_results_csv(self, run_tag: str, results: List[Dict[str, Any]]) -> None:
-        output_file = self.results_dir / f"results_{run_tag}.csv"
+    def _write_results_csv(self, run_tag: str, results: List[Dict[str, Any]], *, artifact_tag: str = "") -> None:
+        output_file = self.results_dir / self._artifact_file_name("results", run_tag, "csv", artifact_tag)
         headers = [
             "TC_ID",
             "Service",
@@ -1081,8 +1373,8 @@ class SITRunner:
                 self._safe_csv(item.get("test_type", "positive")),
                 self._safe_csv(item.get("trx_type", "non-financial")),
                 self._safe_csv(item.get("status")),
-                self._safe_csv(item.get("expected")),
-                self._safe_csv(item.get("actual")),
+                self._safe_csv(redact_sensitive(item.get("expected"))),
+                self._safe_csv(redact_sensitive(item.get("actual"))),
                 self._safe_csv(item.get("response_time_ms")),
                 self._safe_csv(item.get("status_code")),
                 self._safe_csv(item.get("api_name")),
@@ -1090,7 +1382,22 @@ class SITRunner:
             ]
             lines.append(",".join(row))
 
-        output_file.write_text("\n".join(lines), encoding="utf-8")
+        self._atomic_write_text(output_file, "\n".join(lines))
+
+    @staticmethod
+    def _atomic_write_text(path: Path, text: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+        temp_path = Path(temp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(text)
+                handle.flush()
+                os.fsync(handle.fileno())
+            temp_path.replace(path)
+        finally:
+            if temp_path.exists():
+                temp_path.unlink()
 
     def _extract_failure_reason(self, item: Dict[str, Any]) -> str:
         if str(item.get("status", "")).upper() == "PASSED":
@@ -1241,8 +1548,10 @@ class SITRunner:
         summary: Dict[str, Any],
         started_at: datetime,
         finished_at: datetime,
+        *,
+        artifact_tag: str = "",
     ) -> None:
-        report_file = self.reports_dir / f"report_{run_tag}.html"
+        report_file = self.reports_dir / self._artifact_file_name("report", run_tag, "html", artifact_tag)
 
         pass_rate = float(summary.get("pass_percent", 0.0))
         hide_sensitive_data = self._reporting_bool("html_report.hide_sensitive_data", True)
@@ -1316,6 +1625,8 @@ class SITRunner:
         for index, item in enumerate(results, start=1):
             status = str(item.get("status", "")).upper()
             status_class = "status-pass" if status == "PASSED" else "status-fail"
+            outcome_label = self._outcome_label(item)
+            outcome_class = self._outcome_class(item)
             test_type_display = str(item.get("test_type", "positive")).capitalize()
             test_type_class = "test-positive" if test_type_display.lower() == "positive" else "test-negative"
             trx_type = str(item.get("trx_type", "non-financial")).lower()
@@ -1389,6 +1700,7 @@ class SITRunner:
                 f"<td>{self._html_escape(str(item.get('bank', '')))}</td>"
                 f"<td>{self._html_escape(api_name)}</td>"
                 f"<td><span class='status-chip {status_class}'>{self._html_escape(status)}</span></td>"
+                f"<td><span class='outcome-chip {self._html_escape(outcome_class)}'>{self._html_escape(outcome_label)}</span></td>"
                 f"<td>{self._html_escape(str(item.get('expected', '')))}</td>"
                 f"<td><button type='button' class='actual-btn' data-modal-target='{actual_modal_id}'>View</button></td>"
                 f"<td><span class='rt-chip {response_class}'>{response_ms}</span></td>"
@@ -1510,6 +1822,7 @@ class SITRunner:
                 "<div class='detail-head'>"
                 f"<h3>{self._html_escape(str(item.get('tc_id', '')))} - {self._html_escape(str(item.get('description', '')))}</h3>"
                 f"<div class='detail-meta'>Service: {service_key} | Test Type: {self._html_escape(test_type_display)} | Trx Type: {self._html_escape(trx_type_display)} | API: {self._html_escape(api_name)} | Bank: {self._html_escape(str(item.get('bank', '')))} | Status: <span class='{status_class}'>{self._html_escape(status)}</span> | Failure Reason: {self._html_escape(failure_reason_display)}</div>"
+                f"<div class='detail-meta'>Outcome: <span class='outcome-chip {self._html_escape(outcome_class)}'>{self._html_escape(outcome_label)}</span></div>"
                 "</div>"
                 "<div class='json-grid'>"
                 f"{''.join(sections_html)}"
@@ -1846,6 +2159,11 @@ class SITRunner:
         .status-chip {{ display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.2px; }}
         .status-pass {{ background: var(--pass-bg); color: var(--pass-fg); border: 1px solid #86efac; }}
         .status-fail {{ background: var(--fail-bg); color: var(--fail-fg); border: 1px solid #fca5a5; }}
+        .outcome-chip {{ display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.2px; border: 1px solid transparent; }}
+        .outcome-positive-pass {{ background: #dbeafe; color: #1e3a8a; border-color: #93c5fd; }}
+        .outcome-expected-negative {{ background: #fef3c7; color: #92400e; border-color: #fcd34d; }}
+        .outcome-regression {{ background: #fee2e2; color: #7f1d1d; border-color: #fca5a5; }}
+        .outcome-negative-mismatch {{ background: #fce7f3; color: #9d174d; border-color: #f9a8d4; }}
         .type-chip {{ display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.2px; }}
         .test-positive {{ background: #dbeafe; color: #1e3a8a; border: 1px solid #93c5fd; }}
         .test-negative {{ background: #fed7aa; color: #92400e; border: 1px solid #fdba74; }}
@@ -2091,6 +2409,9 @@ class SITRunner:
             <article class="card"><h3>Passed</h3><p>{summary['passed']}</p></article>
             <article class="card"><h3>Failed</h3><p>{summary['failed']}</p></article>
             <article class="card"><h3>Pass Rate</h3><p>{pass_rate}%</p></article>
+            <article class="card"><h3>Expected Negative</h3><p>{int(summary.get("expected_negative_passed", 0))}</p></article>
+            <article class="card"><h3>Regression Failed</h3><p>{int(summary.get("regression_failed", 0))}</p></article>
+            <article class="card"><h3>Negative Mismatch</h3><p>{int(summary.get("negative_mismatch", 0))}</p></article>
             <article class="card"><h3>Avg Response Time</h3><p>{average_response_ms} ms</p></article>
         </section>
 
@@ -2118,6 +2439,7 @@ class SITRunner:
                         <th>Bank</th>
                         <th>API</th>
                         <th>Status</th>
+                        <th>Outcome</th>
                         <th>Expected</th>
                         <th>Actual</th>
                         <th>Response (ms)</th>
@@ -2462,7 +2784,7 @@ class SITRunner:
 </body>
 </html>
 """
-        report_file.write_text(html, encoding="utf-8")
+        self._atomic_write_text(report_file, html)
 
     @staticmethod
     def _format_actual_for_modal(actual_text: str) -> str:
@@ -2487,13 +2809,32 @@ class SITRunner:
         total = len(results)
         passed = sum(1 for result in results if result.get("status") == "PASSED")
         failed = total - passed
+        expected_negative_passed = sum(1 for result in results if SITRunner._outcome_label(result) == "Expected Negative")
+        negative_mismatch = sum(1 for result in results if SITRunner._outcome_label(result) == "Negative Mismatch")
+        regression_failed = sum(1 for result in results if SITRunner._outcome_label(result) == "Regression")
         pass_percent = round((passed / total) * 100, 2) if total else 0.0
         return {
             "total": total,
             "passed": passed,
             "failed": failed,
             "pass_percent": pass_percent,
+            "expected_negative_passed": expected_negative_passed,
+            "negative_mismatch": negative_mismatch,
+            "regression_failed": regression_failed,
         }
+
+    @staticmethod
+    def _outcome_label(result: Dict[str, Any]) -> str:
+        status = str(result.get("status", "")).upper()
+        test_type = str(result.get("test_type", "positive")).strip().lower()
+        if test_type == "negative":
+            return "Expected Negative" if status == "PASSED" else "Negative Mismatch"
+        return "Positive Pass" if status == "PASSED" else "Regression"
+
+    @staticmethod
+    def _outcome_class(result: Dict[str, Any]) -> str:
+        label = SITRunner._outcome_label(result).lower().replace(" ", "-")
+        return f"outcome-{label}"
 
     @staticmethod
     def _html_escape(text: str) -> str:
@@ -2505,8 +2846,123 @@ class SITRunner:
             .replace("'", "&#39;")
         )
 
+    @staticmethod
+    def _slugify_label(value: str) -> str:
+        text = re.sub(r"[^a-z0-9]+", "-", str(value).strip().lower())
+        text = re.sub(r"-{2,}", "-", text).strip("-")
+        return text or "run"
+
+    @classmethod
+    def _build_service_artifact_tag(cls, results: List[Dict[str, Any]]) -> str:
+        services = sorted(
+            {
+                cls._slugify_label(str(item.get("service", "")).strip())
+                for item in results
+                if str(item.get("service", "")).strip()
+            }
+        )
+        if not services:
+            return ""
+        return "-".join(services)
+
+    @classmethod
+    def _artifact_file_name(cls, prefix: str, run_tag: str, extension: str, artifact_tag: str = "") -> str:
+        if artifact_tag:
+            return f"{prefix}_{artifact_tag}_{run_tag}.{extension}"
+        return f"{prefix}_{run_tag}.{extension}"
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run SIT automation testcases.")
+    parser.add_argument(
+        "--mode",
+        choices=["functional", "stress"],
+        default="functional",
+        help="Execution mode. Defaults to the existing functional SIT run.",
+    )
+    parser.add_argument(
+        "--service",
+        dest="services",
+        action="append",
+        default=[],
+        help="Run only the given service. Repeat to include multiple services.",
+    )
+    parser.add_argument(
+        "--api",
+        dest="apis",
+        action="append",
+        default=[],
+        help="Run only the given API name. Repeat to include multiple APIs.",
+    )
+    parser.add_argument(
+        "--tc",
+        dest="testcase_ids",
+        action="append",
+        default=[],
+        help="Run only the given testcase ID. Repeat to include multiple testcases.",
+    )
+    parser.add_argument(
+        "--include-disabled",
+        action="store_true",
+        help="Include Excel rows marked Execute=N in the selected run.",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="Override the worker count for this run.",
+    )
+    parser.add_argument(
+        "--stress-scenario",
+        default="",
+        help="Named scenario from config/stress.yaml to use in stress mode.",
+    )
+    parser.add_argument(
+        "--duration-seconds",
+        type=int,
+        default=None,
+        help="Stress mode only: run duration in seconds when iterations are not specified.",
+    )
+    parser.add_argument(
+        "--iterations",
+        type=int,
+        default=None,
+        help="Stress mode only: total request executions to schedule.",
+    )
+    parser.add_argument(
+        "--ramp-seconds",
+        type=int,
+        default=None,
+        help="Stress mode only: ramp workers in over this many seconds.",
+    )
+    parser.add_argument(
+        "--think-time-ms",
+        type=int,
+        default=None,
+        help="Stress mode only: wait this many milliseconds after each completed request.",
+    )
+    parser.add_argument(
+        "--allow-stateful-apis",
+        action="store_true",
+        help="Stress mode only: allow stateful APIs like payment and register flows.",
+    )
+    return parser.parse_args()
+
 
 if __name__ == "__main__":
     root = Path(__file__).resolve().parent
     runner = SITRunner(root)
-    runner.run()
+    args = parse_args()
+    if args.mode == "stress":
+        stress_options = load_stress_options(runner.config_dir, args)
+        if args.workers is not None:
+            stress_options.workers = max(1, int(args.workers))
+        run_stress(runner, stress_options)
+    else:
+        runner.run(
+            services=args.services,
+            apis=args.apis,
+            testcase_ids=args.testcase_ids,
+            include_disabled=bool(args.include_disabled),
+            max_workers=args.workers,
+        )

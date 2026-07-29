@@ -1,0 +1,17 @@
+{
+  "rrn": "${RRN}",
+  "stan": "${STAN}",
+  "sender_iban": "${SENDER_IBAN}",
+  "sender_idtype": "CNIC",
+  "sender_idvalue": "4240173165763",
+  "sender_name": "MOHAMMAD FAYYAZ",
+  "receiver_iban": "PK61ABPA0010000019474073",
+  "receiver_name": "Imran",
+  "amount": 25.0,
+  "fee": 0.0,
+  "receiver_participant_code": "ABPAPKKA",
+  "transaction_date": "${DATE}",
+  "transaction_time": "${TIME}",
+  "narration": "CAS payment amount boundary 25",
+  "payment_purpose": "027"
+}

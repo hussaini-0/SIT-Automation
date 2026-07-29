@@ -1,0 +1,7 @@
+{
+  "BatchId": "NBPA012411765307480277638",
+  "requestType": "FEDERATED",
+  "DateTime": "ABC",
+  "STAN": "${STAN}",
+  "RRN": "${RRN}"
+}

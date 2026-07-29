@@ -1,0 +1,39 @@
+{
+  "rrn": "${RRN}",
+  "stan": "${STAN}",
+  "uid": {
+    "type": "CNIC",
+    "value": "${CNIC_2}"
+  },
+  "documentType": "CNIC",
+  "documentNumber": "${CNIC_2}",
+  "name": "faizulamin",
+  "gender": "MALE",
+  "birthDate": "2002-05-02",
+  "startDate": "",
+  "expirationDate": "",
+  "aliases": [
+    {
+      "type": "MOBILE",
+      "value": "${MOBILE_2}",
+      "status": "active",
+      "startDate": "",
+      "expirationDate": "",
+      "accounts": [
+        {
+          "id": {
+            "iban": "PK15BPHL7197001236532653"
+          },
+          "currency": "PKR",
+          "isDefault": true,
+          "type": "",
+          "servicer": {
+            "memberId": "DUIBPKKA"
+          },
+          "openingDate": "",
+          "closingDate": ""
+        }
+      ]
+    }
+  ]
+}

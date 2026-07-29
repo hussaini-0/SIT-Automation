@@ -1,2 +1,0 @@
-TC_ID,Service,Description,Test_Type,Status,Expected,Actual,Response_Time_ms,Status_Code,API_Name,Bank
-"TC001","merchant_cas","Authentication","positive","PASSED","","{""token"": ""eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJkaWJ8dGVzdCIsImV4cCI6MTc4MTk0MjM0OCwiaWF0IjoxNzgxODU1OTQ4fQ.sdMdRTxPJq5DiTewc2plCGb0dyXoslDYVn5_q4dDTbd5hnLxMv0fMLf8-Jof9B5P2uD0IZ-oI749oI4hN8vJLA"", ""expiry"": ""1781942348""}","276","200","authenticate","bank1"

@@ -1,0 +1,136 @@
+defaults:
+  workers: 8
+  duration_seconds: 60
+  iterations: 0
+  ramp_seconds: 0
+  think_time_ms: 0
+  include_disabled: false
+  positive_only: true
+  allow_stateful_apis: false
+  services:
+    - cas
+  apis:
+    - authenticate
+    - titlefetch
+    - titlefetchiban
+    - getcustomerinformation
+    - getaliasinformation
+
+scenarios:
+  safe_read_only:
+    services:
+      - cas
+    apis:
+      - authenticate
+      - titlefetch
+      - titlefetchiban
+      - getcustomerinformation
+      - getaliasinformation
+    positive_only: true
+    allow_stateful_apis: false
+
+  cas_auth_burst:
+    services:
+      - cas
+    apis:
+      - authenticate
+    positive_only: true
+    allow_stateful_apis: false
+    workers: 12
+    duration_seconds: 45
+
+  cas_titlefetch_burst:
+    services:
+      - cas
+    apis:
+      - titlefetch
+      - titlefetchiban
+      - titlefetchconv
+    positive_only: true
+    allow_stateful_apis: false
+    workers: 10
+    duration_seconds: 60
+
+  cas_customer_reads:
+    services:
+      - cas
+    apis:
+      - getcustomerinformation
+      - getaliasinformation
+      - getdefaultaccount
+    positive_only: true
+    allow_stateful_apis: false
+    workers: 8
+    duration_seconds: 60
+
+  mixed_read_only:
+    services:
+      - cas
+      - acquiring
+    apis:
+      - authenticate
+      - titlefetch
+      - titlefetchiban
+      - getcustomerinformation
+    positive_only: true
+    allow_stateful_apis: false
+    workers: 10
+    duration_seconds: 60
+
+  acquiring_safe:
+    services:
+      - acquiring
+    apis:
+      - authenticate
+      - transaction_status
+    positive_only: true
+    allow_stateful_apis: false
+    workers: 6
+    duration_seconds: 45
+
+  merchant_cas_safe_read_only:
+    services:
+      - merchant_cas
+    apis:
+      - authenticate
+      - payment_status
+    positive_only: true
+    allow_stateful_apis: false
+    workers: 6
+    duration_seconds: 45
+
+  cas_payment_smoke:
+    services:
+      - cas
+    apis:
+      - payment
+    positive_only: true
+    allow_stateful_apis: true
+    workers: 2
+    duration_seconds: 30
+
+  payment_boundary_subset:
+    services:
+      - cas
+    testcase_ids:
+      - TC435
+      - TC436
+      - TC437
+      - TC438
+      - TC439
+    positive_only: true
+    allow_stateful_apis: true
+    workers: 2
+    duration_seconds: 30
+
+  register_flows_low_concurrency:
+    services:
+      - cas
+    apis:
+      - registerCustomer
+      - onestep
+      - registercaa
+    positive_only: true
+    allow_stateful_apis: true
+    workers: 1
+    duration_seconds: 30

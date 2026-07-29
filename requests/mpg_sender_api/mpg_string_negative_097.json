@@ -1,0 +1,7 @@
+{
+  "ReceiverBic": "TMICFBPK",
+  "BatchId": "   ",
+  "DateTime": "2026-07-24",
+  "STAN": "${STAN}",
+  "RRN": "${RRN}"
+}

@@ -1,0 +1,9 @@
+{
+  "rrn": "${RRN}",
+  "stan": "${STAN}",
+  "uid": {
+    "type": "CNIC",
+    "value": "${CNIC2}"
+  },
+  "action": "suspend"
+}

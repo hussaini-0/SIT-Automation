@@ -1,23 +1,20 @@
-# Global defaults
 defaults:
   timeout_seconds: 30
   retries: 2
   retry_backoff_factor: 0.5
   retry_status_codes:
-    - 408
-    - 429
-    - 500
-    - 502
-    - 503
-    - 504
-
-# Service-scoped API definitions
+  - 408
+  - 429
+  - 500
+  - 502
+  - 503
+  - 504
 services:
   cas:
-    display_name: "CAS Service"
+    display_name: CAS Service
     auth:
       apis:
-        - authenticate
+      - authenticate
       token_json_path: token
     token_routing:
       payment: ib
@@ -41,159 +38,132 @@ services:
       onestep: ib
       getdefaultaccount: test
       registercaa: ib
-      
-
     apis:
       authenticate:
         endpoint: authenticate
         method: POST
         headers:
           Content-Type: application/json
-
       directposting:
         endpoint: /api/v1/paysyslabs/directposting
         method: POST
         headers:
           Content-Type: application/json
-
       titlefetch:
         endpoint: /api/v1/paysyslabs/titlefetch
         method: POST
         headers:
           Content-Type: application/json
-
       titlefetchiban:
         endpoint: /api/v1/paysyslabs/titlefetchibcon
         method: POST
         headers:
           Content-Type: application/json
-
       titlefetchconv:
         endpoint: /api/v1/paysyslabs/titlefetchconv
         method: POST
         headers:
           Content-Type: application/json
-
       payment:
         endpoint: /api/v1/paysyslabs/payment
         method: POST
         headers:
           Content-Type: application/json
-      
       payment1:
         endpoint: /api/v1/paysyslabs/payment
         method: POST
         headers:
           Content-Type: application/json
-
       remittancepayment:
         endpoint: /api/v3/paysyslabs/remittance/payment
         method: POST
         headers:
           Content-Type: application/json
-
       remittancedirectposting:
         endpoint: /api/v3/paysyslabs/remittance/directposting
         method: POST
         headers:
           Content-Type: application/json
-      
       registerCustomer:
         endpoint: /api/v1/paysyslabs/customers/registerCustomer
         method: POST
         headers:
           Content-Type: application/json
-
       registercaa:
         endpoint: /api/v1/paysyslabs/customers/registercaa
         method: POST
         headers:
           Content-Type: application/json
-      
       updatestatus:
         endpoint: /api/v1/paysyslabs/customers/updatestatus
         method: POST
         headers:
           Content-Type: application/json
-      
       getcustomerinformation:
         endpoint: /api/v1/paysyslabs/customers/getcustomerinformation
         method: POST
         headers:
           Content-Type: application/json
-
       modify:
         endpoint: /api/v1/paysyslabs/customers/modify
         method: POST
         headers:
           Content-Type: application/json
-      
       alias:
         endpoint: /api/v1/paysyslabs/alias/registeralias
         method: POST
         headers:
           Content-Type: application/json
-
       getdefaultaccount:
         endpoint: /api/v1/paysyslabs/alias/getdefaultaccount
         method: POST
         headers:
           Content-Type: application/json
-
       getaliasinformation:
         endpoint: /api/v1/paysyslabs/alias/getaliasinformation
         method: POST
         headers:
           Content-Type: application/json
-
       modifyalias:
         endpoint: /api/v1/paysyslabs/alias/modify
         method: POST
         headers:
           Content-Type: application/json
-
       delinkaccount:
         endpoint: /api/v1/paysyslabs/alias/delinkaccount
         method: POST
         headers:
           Content-Type: application/json
-
       linkaccount:
         endpoint: /api/v1/paysyslabs/alias/linkaccount
         method: POST
         headers:
           Content-Type: application/json
-      
       deleteaccount:
         endpoint: /api/v1/paysyslabs/account/deleteaccount
         method: POST
         headers:
           Content-Type: application/json
-      
       deletecustomer:
         endpoint: /api/v1/paysyslabs/customers/delete
         method: POST
         headers:
           Content-Type: application/json
-      
       onestep:
         endpoint: /api/v1/paysyslabs/customers/one-step
         method: POST
         headers:
           Content-Type: application/json
-
       pacs008:
         endpoint: /api/v1/iso20022/pacs008
         method: POST
         headers:
           Content-Type: application/json
-
       pacs002status:
         endpoint: /api/v1/iso20022/pacs002/status
         method: POST
         headers:
           Content-Type: application/json
-
     flows:
       pacs008_to_pacs002:
         initial_api: pacs008
@@ -209,39 +179,37 @@ services:
             type: json_field
             field: transaction_status
             allowed_values:
-              - ACSP
-              - RJCT
+            - ACSP
+            - RJCT
       Chained-Dependent:
         initial_api: getdefaultaccount
         on_success:
           next_api: directposting
           next_request_file: tc174_payment_from_alias.json
           mappings:
-            - from: default-account-byalias.id.iban
-              to: RECEIVER_IBAN
-            - from: default-account-byalias.name
-              to: RECEIVER_NAME
-            - from: default-account-byalias.servicer.memberId
-              to: RECEIVER_PARTICIPANT_CODE
+          - from: default-account-byalias.id.iban
+            to: RECEIVER_IBAN
+          - from: default-account-byalias.name
+            to: RECEIVER_NAME
+          - from: default-account-byalias.servicer.memberId
+            to: RECEIVER_PARTICIPANT_CODE
       Chained-TitleFetch-DirectPosting:
         initial_api: titlefetch
-        #initial_request_file: tc176_title_fetch.json
         on_success:
           next_api: directposting
           next_request_file: tc177_directposting.json
           mappings:
-            - from: account-information.iban
-              to: RECEIVER_IBAN
-            - from: memberid
-              to: RECEIVER_PARTICIPANT_CODE
-            - from: account-information.acctitle
-              to: RECEIVER_NAME
-
+          - from: account-information.iban
+            to: RECEIVER_IBAN
+          - from: memberid
+            to: RECEIVER_PARTICIPANT_CODE
+          - from: account-information.acctitle
+            to: RECEIVER_NAME
   acquiring:
-    display_name: "Acquiring Service"
+    display_name: Acquiring Service
     auth:
       apis:
-        - authenticate
+      - authenticate
       token_json_path: access_token
     token_routing:
       transaction: default
@@ -252,24 +220,21 @@ services:
         method: POST
         headers:
           Content-Type: application/json
-
       transaction:
         endpoint: /api/v1/transactions
         method: POST
         headers:
           Content-Type: application/json
-
       transaction_status:
         endpoint: /api/v1/transactions/{transaction_id}/status
         method: GET
         headers:
           Content-Type: application/json
-
   merchant_cas:
-    display_name: "Merchant CAS Service"
+    display_name: Merchant CAS Service
     auth:
       apis:
-        - authenticate
+      - authenticate
       token_json_path: token
     token_routing:
       payment: default
@@ -286,61 +251,117 @@ services:
         method: POST
         headers:
           Content-Type: application/json
-
       payment:
         endpoint: /merchant/api/v1/payment
         method: POST
         headers:
           Content-Type: application/json
-
       merchant_payment_direct_sqrc:
         endpoint: /api/v1/paysyslabs/merchant/payment/direct/SQRC
         method: POST
         headers:
           Content-Type: application/json
-
       merchant_payment_sqrc:
         endpoint: /api/v1/paysyslabs/merchant/payment/SQRC
         method: POST
         headers:
           Content-Type: application/json
-
       merchant_payment_alias:
         endpoint: /api/v1/paysyslabs/merchant/payment/alias
         method: POST
         headers:
           Content-Type: application/json
-
       merchant_payment_direct_rtpn:
         endpoint: /api/v1/paysyslabs/merchant/payment/direct/RTPN
         method: POST
         headers:
           Content-Type: application/json
-
       merchant_payment_direct_rtpl:
         endpoint: /api/v1/paysyslabs/merchant/payment/direct/RTPL
         method: POST
         headers:
           Content-Type: application/json
-
       merchant_payment_direct_dqrc:
         endpoint: /api/v1/paysyslabs/merchant/payment/direct/DQRC
         method: POST
         headers:
           Content-Type: application/json
-
       payment_status:
         endpoint: /merchant/api/v1/payment/{payment_id}/status
         method: GET
         headers:
           Content-Type: application/json
-
-# Legacy global auth and APIs (for backward compatibility)
+  mpg_sender_api:
+    display_name: MPG Sender API
+    auth:
+      apis:
+      - createAuthenticationTokenUsingPOST
+      token_json_path: jwt
+    token_routing:
+      paymentUsingPOST: test
+      paymentInquiryUsingPOST: test
+      paymentInquiryV2UsingPOST: test
+      validateUsingPOST: test
+      prevalInquiryUsingPOST: test
+      resendingPrevalOrPaymentUsingPOST: test
+      paymentUsingPOST_1: test
+      getBatchDetailsUsingGET: test
+      getBatchUsingGET: test
+    apis:
+      paymentUsingPOST:
+        endpoint: /api/v1/paysyslabs/bulksending/payment
+        method: POST
+        headers:
+          Content-Type: application/json
+      paymentInquiryUsingPOST:
+        endpoint: /api/v1/paysyslabs/bulksending/paymentinquiry
+        method: POST
+        headers:
+          Content-Type: application/json
+      paymentInquiryV2UsingPOST:
+        endpoint: /api/v1/paysyslabs/bulksending/paymentinquiryV2
+        method: POST
+        headers:
+          Content-Type: application/json
+      validateUsingPOST:
+        endpoint: /api/v1/paysyslabs/bulksending/preval
+        method: POST
+        headers:
+          Content-Type: application/json
+      prevalInquiryUsingPOST:
+        endpoint: /api/v1/paysyslabs/bulksending/prevalinquiry
+        method: POST
+        headers:
+          Content-Type: application/json
+      resendingPrevalOrPaymentUsingPOST:
+        endpoint: /api/v1/paysyslabs/bulksending/resendPrevalOrPayment
+        method: POST
+        headers:
+          Content-Type: application/json
+      paymentUsingPOST_1:
+        endpoint: /api/v1/paysyslabs/bulksending/payment
+        method: POST
+        headers:
+          Content-Type: application/json
+      createAuthenticationTokenUsingPOST:
+        endpoint: /authenticate
+        method: POST
+        headers:
+          Content-Type: application/json
+      getBatchDetailsUsingGET:
+        endpoint: /test/bulksending/batch/batchDetails/{batchId}
+        method: GET
+        headers:
+          Content-Type: application/json
+      getBatchUsingGET:
+        endpoint: /test/bulksending/batch/get/{batchId}
+        method: GET
+        headers:
+          Content-Type: application/json
 auth:
   apis:
-    - authenticate
+  - authenticate
   token_json_path: token
-
 token_routing:
   payment: ib
   directposting: test
@@ -365,68 +386,57 @@ token_routing:
   transaction: default
   transaction_status: default
   payment_status: default
-
 apis:
   directposting:
     endpoint: /api/v1/paysyslabs/directposting
     method: POST
     headers:
       Content-Type: application/json
-
   authenticate:
     endpoint: authenticate
     method: POST
     headers:
       Content-Type: application/json
-
   titlefetch:
     endpoint: /api/v1/paysyslabs/titlefetch
     method: POST
     headers:
       Content-Type: application/json
-  
   titlefetchiban:
     endpoint: /api/v1/paysyslabs/titlefetchibcon
     method: POST
     headers:
       Content-Type: application/json
-
   titlefetchconv:
     endpoint: /api/v1/paysyslabs/titlefetchconv
     method: POST
     headers:
       Content-Type: application/json
-
   payment:
     endpoint: /api/v1/paysyslabs/payment
     method: POST
     headers:
       Content-Type: application/json
-  
   remittancepayment:
     endpoint: /api/v3/paysyslabs/remittance/payment
     method: POST
     headers:
       Content-Type: application/json
-
   remittancedirectposting:
     endpoint: /api/v3/paysyslabs/remittance/directposting
     method: POST
     headers:
       Content-Type: application/json
-
   pacs008:
     endpoint: /api/v1/iso20022/pacs008
     method: POST
     headers:
       Content-Type: application/json
-
   pacs002status:
     endpoint: /api/v1/iso20022/pacs002/status
     method: POST
     headers:
       Content-Type: application/json
-
 flows:
   pacs008_to_pacs002:
     initial_api: pacs008
@@ -442,5 +452,5 @@ flows:
         type: json_field
         field: transaction_status
         allowed_values:
-          - ACSP
-          - RJCT
+        - ACSP
+        - RJCT

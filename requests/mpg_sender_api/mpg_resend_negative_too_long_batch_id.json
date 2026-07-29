@@ -1,0 +1,7 @@
+{
+  "BatchId": "BATCH-ID-TOO-LONG-123456789012345678901234567890",
+  "requestType": "FEDERATED",
+  "DateTime": "20260724103500",
+  "STAN": "${STAN}",
+  "RRN": "${RRN}"
+}

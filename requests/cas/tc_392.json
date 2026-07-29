@@ -1,0 +1,5 @@
+{
+  "rrn": "${RRN}",
+  "stan": "${STAN}",
+  "action": "activate"
+}

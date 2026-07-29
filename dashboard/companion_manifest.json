@@ -1,0 +1,38 @@
+{
+  "name": "QA Control Center",
+  "type": "companion_application",
+  "entrypoint": "streamlit run dashboard/app.py",
+  "api_entrypoint": "uvicorn dashboard.api:app",
+  "framework_contract": {
+    "consumes": [
+      "runner.SITRunner",
+      "runner.ServiceTestCase",
+      "config/*.yaml",
+      "testcases/*.xlsx",
+      "requests/**/*.json",
+      "results/results_*.json",
+      "results/results_*.csv",
+      "reports/report_*.html",
+      "logs/*.log"
+    ],
+    "does_not_replace": [
+      "runner.py",
+      "python runner.py CLI behavior",
+      "Excel testcase schema",
+      "JSON request template schema",
+      "report formats",
+      "log formats"
+    ],
+    "writes": [
+      "config/dashboard_settings.yaml",
+      "results/execution_history.json",
+      "results/swagger_import_report.json"
+    ],
+    "optional_framework_updates": [
+      "config/apis.yaml",
+      "config/servers.yaml",
+      "testcases/*.xlsx",
+      "requests/<service>/*.json"
+    ]
+  }
+}

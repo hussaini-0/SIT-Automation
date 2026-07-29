@@ -1,0 +1,32 @@
+{
+  "SenderBic": "",
+  "ReceiverBic": "",
+  "TransactionInfo": {
+    "DateTime": "",
+    "PaymentPurpose": "",
+    "RRN": "",
+    "STAN": "",
+    "Additional_data1": "",
+    "Additional_data2": ""
+  },
+  "BatchInformation": {
+    "BatchId": "",
+    "TotalTxns": 0,
+    "BatchDetail": [
+      {
+        "TrackingId": "",
+        "IBAN": "",
+        "Name": "",
+        "IdType": "",
+        "IdValue": "",
+        "Narration": "",
+        "Amount": 0,
+        "Currency": "",
+        "STAN": "",
+        "RRN": "",
+        "reserver_field1": "",
+        "reserver_field2": ""
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "rrn": "${RRN}",
+  "stan": "${STAN}",
+  "uid": {
+    "type": "CNIC",
+    "value": "${CNIC}"
+  },
+  "documentType": "CNIC",
+  "documentNumber": "${CNIC}",
+  "surname": "faiz",
+  "gender": "MALE",
+  "birthDate": "2002-01-15"
+}

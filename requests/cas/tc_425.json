@@ -1,0 +1,30 @@
+{
+  "rrn": "${RRN}",
+  "stan": "${STAN}",
+  "uid": {
+    "type": "CNIC",
+    "value": "${CNIC_2}"
+  },
+  "documentType": "CNIC",
+  "documentNumber": "${CNIC_2}",
+  "name": "faizulamin",
+  "surname": "khan",
+  "gender": "MALE",
+  "birthDate": "2002-05-02",
+  "aliases": [
+    {
+      "type": "MOBILE",
+      "value": "${MOBILE_2}",
+      "status": "active",
+      "accounts": [
+        {
+          "id": {
+            "iban": "PK15BPHL7197001236532653"
+          },
+          "currency": "PKR",
+          "isDefault": true
+        }
+      ]
+    }
+  ]
+}

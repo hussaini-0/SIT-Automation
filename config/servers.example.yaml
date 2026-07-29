@@ -1,0 +1,33 @@
+services:
+  cas:
+    enabled: true
+    display_name: CAS Service
+    base_url: http://sit-host:9091
+  acquiring:
+    enabled: false
+    display_name: Acquiring Service
+    base_url: http://sit-host:9096
+  merchant_cas:
+    enabled: false
+    display_name: Merchant CAS Service
+    base_url: http://sit-host:9093
+  mpg_sender_api:
+    enabled: false
+    display_name: MPG Sender API
+    base_url: http://sit-host:8007/
+
+banks:
+  default_bank:
+    display_name: Default Bank
+    test_data:
+      SENDER_IBAN: PK00BANK0000000000000000
+      sender_iban: PK00BANK0000000000000000
+    services:
+      cas:
+        base_url: http://sit-host:9091
+      acquiring:
+        base_url: http://sit-host:9096
+      merchant_cas:
+        base_url: http://sit-host:9093
+      mpg_sender_api:
+        base_url: http://sit-host:8007/

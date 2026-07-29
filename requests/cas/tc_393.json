@@ -1,0 +1,8 @@
+{
+  "rrn": "${RRN}",
+  "stan": "${STAN}",
+  "uid": {
+    "value": "${CNIC}"
+  },
+  "action": "activate"
+}

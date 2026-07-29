@@ -1,0 +1,7 @@
+service,api_name,current_total,current_positive,current_negative,current_other,target_positive,target_negative,target_boundary,target_auth,target_duplicate,target_flow,target_total,gap_total,priority,notes
+cas,authenticate,0,0,0,0,2,4,1,2,0,0,9,9,P0,Auth baseline and token error coverage
+cas,payment,0,0,0,0,2,6,2,2,1,1,14,14,P0,Core payment API
+cas,directposting,0,0,0,0,2,6,2,2,1,1,14,14,P0,Core posting API
+cas,titlefetch,0,0,0,0,2,5,2,1,0,0,10,10,P1,Lookup and validation coverage
+merchant_cas,merchant_payment_sqrc,0,0,0,0,2,6,2,2,1,1,14,14,P0,Merchant payment coverage
+acquiring,transaction,0,0,0,0,2,6,2,2,1,1,14,14,P0,Acquiring transaction coverage

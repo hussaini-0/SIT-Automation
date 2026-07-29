@@ -19,24 +19,61 @@ class ApiClient:
         error_logger,
     ) -> None:
         self.timeout_seconds = timeout_seconds
+        self.retries = retries
+        self.retry_backoff_factor = retry_backoff_factor
+        self.retry_status_codes = retry_status_codes
         self.request_logger = request_logger
         self.response_logger = response_logger
         self.error_logger = error_logger
 
-        self.session = requests.Session()
+        self.session = self._build_session()
+
+    def _build_session(self) -> requests.Session:
+        session = requests.Session()
+        # Keep urllib3 retries limited to safe methods. Retrying POST can create
+        # duplicate financial transactions if the server processed the request.
         retry_strategy = Retry(
-            total=retries,
-            connect=retries,
-            read=retries,
-            status=retries,
-            backoff_factor=retry_backoff_factor,
-            status_forcelist=retry_status_codes,
+            total=self.retries,
+            connect=self.retries,
+            read=self.retries,
+            status=self.retries,
+            backoff_factor=self.retry_backoff_factor,
+            status_forcelist=self.retry_status_codes,
             allowed_methods=frozenset(["GET", "HEAD", "OPTIONS"]),
             raise_on_status=False,
         )
         adapter = HTTPAdapter(max_retries=retry_strategy)
-        self.session.mount("http://", adapter)
-        self.session.mount("https://", adapter)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        return session
+
+    def _reset_session(self) -> None:
+        self.session.close()
+        self.session = self._build_session()
+
+    def _should_retry_request_error(self, method: str, attempt: int) -> bool:
+        safe_methods = {"GET", "HEAD", "OPTIONS"}
+        return method.upper() in safe_methods and attempt < self.retries
+
+    def _sleep_before_retry(self, attempt: int) -> None:
+        if self.retry_backoff_factor <= 0:
+            return
+        time.sleep(self.retry_backoff_factor * (2 ** max(attempt - 1, 0)))
+
+    def _request_once(
+        self,
+        method: str,
+        url: str,
+        payload: Optional[Dict[str, Any]],
+        headers: Optional[Dict[str, str]],
+    ) -> requests.Response:
+        return self.session.request(
+            method=method,
+            url=url,
+            json=payload,
+            headers=headers,
+            timeout=self.timeout_seconds,
+        )
 
     def call(
         self,
@@ -54,14 +91,34 @@ class ApiClient:
             json.dumps(payload or {}, ensure_ascii=False),
         )
 
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                response = self._request_once(method, url, payload, headers)
+                break
+            except requests.RequestException as exc:
+                elapsed_ms = int((time.perf_counter() - request_started) * 1000)
+                self._reset_session()
+                if self._should_retry_request_error(method, attempt):
+                    self.error_logger.warning(
+                        "HTTP_RETRY | %s | attempt=%s | elapsed_ms=%s",
+                        str(exc),
+                        attempt,
+                        elapsed_ms,
+                    )
+                    self._sleep_before_retry(attempt)
+                    continue
+                self.error_logger.exception("HTTP_ERROR | %s | elapsed_ms=%s", str(exc), elapsed_ms)
+                return {
+                    "status_code": None,
+                    "body": {"error": str(exc), "error_type": exc.__class__.__name__},
+                    "text": str(exc),
+                    "elapsed_ms": elapsed_ms,
+                    "headers": {},
+                }
+
         try:
-            response = self.session.request(
-                method=method,
-                url=url,
-                json=payload,
-                headers=headers,
-                timeout=self.timeout_seconds,
-            )
             elapsed_ms = int((time.perf_counter() - request_started) * 1000)
             parsed_body = self._safe_json(response)
 
@@ -82,10 +139,11 @@ class ApiClient:
             }
         except requests.RequestException as exc:
             elapsed_ms = int((time.perf_counter() - request_started) * 1000)
+            self._reset_session()
             self.error_logger.exception("HTTP_ERROR | %s | elapsed_ms=%s", str(exc), elapsed_ms)
             return {
                 "status_code": None,
-                "body": {"error": str(exc)},
+                "body": {"error": str(exc), "error_type": exc.__class__.__name__},
                 "text": str(exc),
                 "elapsed_ms": elapsed_ms,
                 "headers": {},

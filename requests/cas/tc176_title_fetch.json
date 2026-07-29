@@ -5,5 +5,5 @@
   "memberid": "${BIC_CODE}",
   "idType": "",
   "idValue": "",
-  "amount": 0
+  "amount": 0.0
 }

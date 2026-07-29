@@ -1,0 +1,32 @@
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+
+logs/
+results/
+reports/
+generated_testcases/
+testcases/generated/
+*.log
+
+testcases/~$*.xlsx
+*.tmp
+*.rar
+
+# Local runtime and machine-specific config
+config/runtime_test_data.yaml
+config/dashboard_settings.yaml
+config/servers.yaml
+config/test_data.yaml
+
+# Streamlit local state
+.streamlit/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

@@ -1,0 +1,775 @@
+common:
+  mpg_auth_bindings: &mpg_auth_bindings
+    username: mpg_username
+    password: mpg_password
+    channel: mpg_channel
+
+  mpg_payment_bindings: &mpg_payment_bindings
+    SenderBic: mpg_sender_bic
+    ReceiverBic: mpg_receiver_bic
+    TransactionInfo.DateTime: mpg_datetime
+    TransactionInfo.PaymentPurpose: mpg_payment_purpose
+    TransactionInfo.RRN: mpg_rrn
+    TransactionInfo.STAN: mpg_stan
+    TransactionInfo.Additional_data1: mpg_additional_data1
+    TransactionInfo.Additional_data2: mpg_additional_data2
+    BatchInformation.BatchId: mpg_batch_id
+    BatchInformation.TotalTxns: mpg_total_txns
+    BatchInformation.BatchDetail.0.TrackingId: mpg_tracking_id
+    BatchInformation.BatchDetail.0.IBAN: receiver_iban
+    BatchInformation.BatchDetail.0.Name: mpg_beneficiary_name
+    BatchInformation.BatchDetail.0.IdType: mpg_id_type
+    BatchInformation.BatchDetail.0.IdValue: mpg_id_value
+    BatchInformation.BatchDetail.0.Narration: mpg_narration
+    BatchInformation.BatchDetail.0.Amount: mpg_amount
+    BatchInformation.BatchDetail.0.Currency: mpg_currency
+    BatchInformation.BatchDetail.0.STAN: mpg_stan
+    BatchInformation.BatchDetail.0.RRN: mpg_rrn
+    BatchInformation.BatchDetail.0.reserver_field1: mpg_additional_data1
+    BatchInformation.BatchDetail.0.reserver_field2: mpg_additional_data2
+
+  mpg_payment_v2_bindings: &mpg_payment_v2_bindings
+    SenderBic: mpg_sender_bic
+    ReceiverBic: mpg_receiver_bic
+    ttc: mpg_ttc
+    TransactionInfo.DateTime: mpg_datetime
+    TransactionInfo.PaymentPurpose: mpg_payment_purpose
+    TransactionInfo.RRN: mpg_rrn
+    TransactionInfo.STAN: mpg_stan
+    TransactionInfo.Additional_data1: mpg_additional_data1
+    TransactionInfo.Additional_data2: mpg_additional_data2
+    BatchInformation.BatchId: mpg_batch_id
+    BatchInformation.TotalTxns: mpg_total_txns
+    BatchInformation.BatchDetail.0.TrackingId: mpg_tracking_id
+    BatchInformation.BatchDetail.0.IBAN: receiver_iban
+    BatchInformation.BatchDetail.0.Name: mpg_beneficiary_name
+    BatchInformation.BatchDetail.0.IdType: mpg_id_type
+    BatchInformation.BatchDetail.0.IdValue: mpg_id_value
+    BatchInformation.BatchDetail.0.Narration: mpg_narration
+    BatchInformation.BatchDetail.0.Amount: mpg_amount
+    BatchInformation.BatchDetail.0.Currency: mpg_currency
+    BatchInformation.BatchDetail.0.STAN: mpg_stan
+    BatchInformation.BatchDetail.0.RRN: mpg_rrn
+    BatchInformation.BatchDetail.0.reserver_field1: mpg_additional_data1
+    BatchInformation.BatchDetail.0.reserver_field2: mpg_additional_data2
+    BatchInformation.BatchDetail.0.RemittanceInfo.AmountInFcy: mpg_remittance_amount
+    BatchInformation.BatchDetail.0.RemittanceInfo.CountryCode: mpg_remittance_country_code
+    BatchInformation.BatchDetail.0.RemittanceInfo.CountryName: mpg_remittance_country_name
+    BatchInformation.BatchDetail.0.RemittanceInfo.CurrencyInFcy: mpg_remittance_currency
+    BatchInformation.BatchDetail.0.RemittanceInfo.RateOfConversion: mpg_remittance_rate
+    BatchInformation.BatchDetail.0.RemittanceInfo.RemittingInstitute: mpg_remittance_institute
+    BatchInformation.BatchDetail.0.RemittanceInfo.TransactionReference: mpg_transaction_reference
+
+  mpg_inquiry_bindings: &mpg_inquiry_bindings
+    ReceiverBic: mpg_receiver_bic
+    BatchId: mpg_batch_id
+    BatchDateTime: mpg_batch_datetime
+    TrackingId: mpg_tracking_id
+    STAN: mpg_stan
+    RRN: mpg_rrn
+
+  mpg_inquiry_v2_bindings: &mpg_inquiry_v2_bindings
+    ReceiverBic: mpg_receiver_bic
+    BatchId: mpg_batch_id
+    DateTime: mpg_date
+    STAN: mpg_stan
+    RRN: mpg_rrn
+
+  mpg_preval_inquiry_bindings: &mpg_preval_inquiry_bindings
+    ReceiverBic: mpg_receiver_bic
+    BatchId: mpg_batch_id
+    DateTime: mpg_date
+    STAN: mpg_stan
+    RRN: mpg_rrn
+
+  mpg_resend_bindings: &mpg_resend_bindings
+    BatchId: mpg_batch_id
+    requestType: mpg_request_type
+    DateTime: mpg_request_datetime
+    STAN: mpg_stan
+    RRN: mpg_rrn
+
+  mpg_get_batch_bindings: &mpg_get_batch_bindings
+    batchId: mpg_batch_id
+
+  auth_variants: &auth_variants
+    - name: auth-positive-standard
+      description: Authentication success for test channel
+      file_stub: positive_standard
+      test_type: positive
+      expected_result: "200"
+      validation_type: status_code
+    - name: auth-positive-secondary-channel
+      description: Authentication success for IB channel
+      file_stub: positive_alternate_channel
+      test_type: positive
+      expected_result: "200"
+      validation_type: status_code
+      test_data_bindings:
+        channel: mpg_channel_alt
+    - name: auth-negative-null-username
+      description: Authentication null username
+      file_stub: negative_null_username
+      test_type: negative
+      expected_result: Invalid  IP Address
+      mutations:
+        - op: set
+          path: username
+          value: null
+    - name: auth-negative-whitespace-username
+      description: Authentication blank username
+      file_stub: negative_whitespace_username
+      test_type: negative
+      expected_result: Invalid  IP Address
+      mutations:
+        - op: set
+          path: username
+          value: "   "
+    - name: auth-negative-too-long-username
+      description: Authentication username too long
+      file_stub: negative_too_long_username
+      test_type: negative
+      expected_result: Invalid  IP Address
+      mutations:
+        - op: set
+          path: username
+          value: this_username_is_far_too_long_for_validation_testing_1234567890
+    - name: auth-negative-too-short-password
+      description: Authentication password too short
+      file_stub: negative_too_short_password
+      test_type: negative
+      expected_result: Invalid  IP Address
+      mutations:
+        - op: set
+          path: password
+          value: x
+    - name: auth-negative-invalid-enum-channel
+      description: Authentication invalid channel
+      file_stub: negative_invalid_enum_channel
+      test_type: negative
+      expected_result: Invalid channel
+      mutations:
+        - op: set
+          path: channel
+          value: INVALID
+    - name: auth-negative-malformed-payload
+      description: Authentication malformed JSON payload
+      file_stub: negative_malformed_payload
+      test_type: negative
+      expected_result: "JSON parse error: Cannot construct instance of `com.paysyslabs.mpg.model.request.JwtRequest`"
+      mutations:
+        - op: replace_root
+          value: INVALID_PAYLOAD
+    - name: auth-negative-unauthorized-scenario
+      description: Authentication invalid password
+      file_stub: negative_unauthorized_scenario
+      test_type: negative
+      expected_result: Invalid  IP Address
+      mutations:
+        - op: set
+          path: password
+          value: invalid_password
+
+  batch_payment_variants: &batch_payment_variants
+    - name: positive-standard
+      description: "{api_label} success standard request"
+      file_stub: positive_standard
+      test_type: positive
+      expected_result: "200"
+      validation_type: status_code
+    - name: positive-secondary-receiver
+      description: "{api_label} success with alternate receiver"
+      file_stub: positive_secondary_receiver
+      test_type: positive
+      expected_result: "200"
+      validation_type: status_code
+      test_data_bindings:
+        BatchInformation.BatchDetail.0.IBAN: IBAN_2
+        BatchInformation.BatchDetail.0.IdValue: CNIC_2
+    - name: negative-null-id-value
+      description: "{api_label} null IdValue"
+      file_stub: negative_null_id_value
+      test_type: negative
+      expected_result: IdValue
+      mutations:
+        - op: set
+          path: BatchInformation.BatchDetail.0.IdValue
+          value: null
+    - name: negative-whitespace-tracking-id
+      description: "{api_label} blank TrackingId"
+      file_stub: negative_whitespace_tracking_id
+      test_type: negative
+      expected_result: Tracking ID limit min(24)|max(31)
+      mutations:
+        - op: set
+          path: BatchInformation.BatchDetail.0.TrackingId
+          value: "   "
+    - name: negative-too-long-tracking-id
+      description: "{api_label} TrackingId too long"
+      file_stub: negative_too_long_tracking_id
+      test_type: negative
+      expected_result: Tracking ID limit min(24)|max(31)
+      mutations:
+        - op: set
+          path: BatchInformation.BatchDetail.0.TrackingId
+          value: TRACKING-ID-TOO-LONG-123456789012345678901234567890
+    - name: negative-too-short-tracking-id
+      description: "{api_label} TrackingId too short"
+      file_stub: negative_too_short_tracking_id
+      test_type: negative
+      expected_result: Tracking ID limit min(24)|max(31)
+      mutations:
+        - op: set
+          path: BatchInformation.BatchDetail.0.TrackingId
+          value: T
+    - name: negative-invalid-enum-id-type
+      description: "{api_label} invalid IdType"
+      file_stub: negative_invalid_enum_id_type
+      test_type: negative
+      expected_result: IdType
+      mutations:
+        - op: set
+          path: BatchInformation.BatchDetail.0.IdType
+          value: INVALID
+    - name: negative-invalid-date
+      description: "{api_label} invalid DateTime format"
+      file_stub: negative_invalid_date
+      test_type: negative
+      expected_result: Date Time must be Formatted like this yyyyMMddHHmmss
+      mutations:
+        - op: set
+          path: TransactionInfo.DateTime
+          value: "2026-99-99T25:61:61"
+    - name: negative-invalid-amount-format
+      description: "{api_label} invalid amount format"
+      file_stub: negative_invalid_amount_format
+      test_type: negative
+      expected_result: "JSON parse error: Cannot deserialize value of type `java.math.BigDecimal` from String \"ABC\": not a valid representation"
+      mutations:
+        - op: set
+          path: BatchInformation.BatchDetail.0.Amount
+          value: ABC
+    - name: negative-duplicate-request
+      description: "{api_label} duplicate RRN"
+      file_stub: negative_duplicate_request
+      test_type: negative
+      expected_result: '404 NOT_FOUND "Batch not found"'
+      mutations:
+        - op: set
+          path: TransactionInfo.RRN
+          value: ${DUPLICATE_RRN}
+    - name: negative-malformed-payload
+      description: "{api_label} malformed JSON payload"
+      file_stub: negative_malformed_payload
+      test_type: negative
+      expected_result: JSON parse error
+      mutations:
+        - op: replace_root
+          value: INVALID_PAYLOAD
+    - name: negative-unauthorized-scenario
+      description: "{api_label} unauthorized sender BIC"
+      file_stub: negative_unauthorized_scenario
+      test_type: negative
+      expected_result: Forbidden
+      mutations:
+        - op: set
+          path: SenderBic
+          value: UNAUTHORIZED
+
+  inquiry_variants: &inquiry_variants
+    - name: positive-standard
+      description: "{api_label} success standard request"
+      file_stub: positive_standard
+      test_type: positive
+      expected_result: "200"
+      validation_type: status_code
+    - name: positive-secondary-batch
+      description: "{api_label} success with alternate BatchId"
+      file_stub: positive_secondary_batch
+      test_type: positive
+      expected_result: "200"
+      validation_type: status_code
+      test_data_bindings:
+        BatchId: mpg_batch_id_alt
+    - name: negative-null-batch-id
+      description: "{api_label} null BatchId"
+      file_stub: negative_null_batch_id
+      test_type: negative
+      expected_result: Batch ID limit min(24)|max(30)
+      mutations:
+        - op: set
+          path: BatchId
+          value: null
+    - name: negative-whitespace-tracking-id
+      description: "{api_label} blank TrackingId"
+      file_stub: negative_whitespace_tracking_id
+      test_type: negative
+      expected_result: Tracking ID limit min(24)|max(30)
+      mutations:
+        - op: set
+          path: TrackingId
+          value: "   "
+    - name: negative-too-long-batch-id
+      description: "{api_label} BatchId too long"
+      file_stub: negative_too_long_batch_id
+      test_type: negative
+      expected_result: Batch ID limit min(24)|max(30)
+      mutations:
+        - op: set
+          path: BatchId
+          value: BATCH-ID-TOO-LONG-123456789012345678901234567890
+    - name: negative-too-short-batch-id
+      description: "{api_label} BatchId too short"
+      file_stub: negative_too_short_batch_id
+      test_type: negative
+      expected_result: Batch ID limit min(24)|max(30)
+      mutations:
+        - op: set
+          path: BatchId
+          value: B1
+    - name: negative-invalid-enum-receiver-bic
+      description: "{api_label} invalid ReceiverBic"
+      file_stub: negative_invalid_enum_receiver_bic
+      test_type: negative
+      expected_result: ReceiverBic
+      mutations:
+        - op: set
+          path: ReceiverBic
+          value: INVALID
+    - name: negative-duplicate-request
+      description: "{api_label} duplicate RRN"
+      file_stub: negative_duplicate_request
+      test_type: negative
+      expected_result: '404 NOT_FOUND "Batch not found"'
+      mutations:
+        - op: set
+          path: RRN
+          value: ${DUPLICATE_RRN}
+    - name: negative-malformed-payload
+      description: "{api_label} malformed JSON payload"
+      file_stub: negative_malformed_payload
+      test_type: negative
+      expected_result: JSON parse error
+      mutations:
+        - op: replace_root
+          value: INVALID_PAYLOAD
+  inquiry_v2_variants: &inquiry_v2_variants
+    - name: positive-standard
+      description: "{api_label} success standard request"
+      file_stub: positive_standard
+      test_type: positive
+      expected_result: "200"
+      validation_type: status_code
+    - name: positive-secondary-batch
+      description: "{api_label} success with alternate BatchId"
+      file_stub: positive_secondary_batch
+      test_type: positive
+      expected_result: "200"
+      validation_type: status_code
+      test_data_bindings:
+        BatchId: mpg_batch_id_alt
+    - name: negative-null-batch-id
+      description: "{api_label} null BatchId"
+      file_stub: negative_null_batch_id
+      test_type: negative
+      expected_result: Batch ID limit min(24)|max(30)
+      mutations:
+        - op: set
+          path: BatchId
+          value: null
+    - name: negative-whitespace-batch-id
+      description: "{api_label} blank BatchId"
+      file_stub: negative_whitespace_batch_id
+      test_type: negative
+      expected_result: Batch ID limit min(24)|max(30)
+      mutations:
+        - op: set
+          path: BatchId
+          value: "   "
+    - name: negative-too-long-batch-id
+      description: "{api_label} BatchId too long"
+      file_stub: negative_too_long_batch_id
+      test_type: negative
+      expected_result: Batch ID limit min(24)|max(30)
+      mutations:
+        - op: set
+          path: BatchId
+          value: BATCH-ID-TOO-LONG-123456789012345678901234567890
+    - name: negative-too-short-batch-id
+      description: "{api_label} BatchId too short"
+      file_stub: negative_too_short_batch_id
+      test_type: negative
+      expected_result: Batch ID limit min(24)|max(30)
+      mutations:
+        - op: set
+          path: BatchId
+          value: B1
+    - name: negative-invalid-enum-receiver-bic
+      description: "{api_label} invalid ReceiverBic"
+      file_stub: negative_invalid_enum_receiver_bic
+      test_type: negative
+      expected_result: ReceiverBic
+      mutations:
+        - op: set
+          path: ReceiverBic
+          value: INVALID
+    - name: negative-invalid-date
+      description: "{api_label} invalid DateTime format"
+      file_stub: negative_invalid_date
+      test_type: negative
+      expected_result: Date Time must be formatted like this yyyy-MM-dd
+      mutations:
+        - op: set
+          path: DateTime
+          value: "20260799"
+    - name: negative-duplicate-request
+      description: "{api_label} duplicate RRN"
+      file_stub: negative_duplicate_request
+      test_type: negative
+      expected_result: '404 NOT_FOUND "Batch not found"'
+      mutations:
+        - op: set
+          path: RRN
+          value: ${DUPLICATE_RRN}
+    - name: negative-malformed-payload
+      description: "{api_label} malformed JSON payload"
+      file_stub: negative_malformed_payload
+      test_type: negative
+      expected_result: JSON parse error
+      mutations:
+        - op: replace_root
+          value: INVALID_PAYLOAD
+    - name: negative-unauthorized-scenario
+      description: "{api_label} unauthorized receiver BIC"
+      file_stub: negative_unauthorized_scenario
+      test_type: negative
+      expected_result: Forbidden
+      mutations:
+        - op: set
+          path: ReceiverBic
+          value: UNAUTHORIZED
+
+  resend_variants: &resend_variants
+    - name: positive-standard
+      description: "{api_label} success standard request"
+      file_stub: positive_standard
+      test_type: positive
+      expected_result: "200"
+      validation_type: status_code
+    - name: positive-secondary-batch
+      description: "{api_label} success with alternate BatchId"
+      file_stub: positive_secondary_batch
+      test_type: positive
+      expected_result: "200"
+      validation_type: status_code
+      test_data_bindings:
+        BatchId: mpg_batch_id_alt
+    - name: negative-null-batch-id
+      description: "{api_label} null BatchId"
+      file_stub: negative_null_batch_id
+      test_type: negative
+      expected_result: Batch ID limit min(24)|max(30)
+      mutations:
+        - op: set
+          path: BatchId
+          value: null
+    - name: negative-whitespace-request-type
+      description: "{api_label} blank requestType"
+      file_stub: negative_whitespace_request_type
+      test_type: negative
+      expected_result: requestType
+      mutations:
+        - op: set
+          path: requestType
+          value: "   "
+    - name: negative-too-long-batch-id
+      description: "{api_label} BatchId too long"
+      file_stub: negative_too_long_batch_id
+      test_type: negative
+      expected_result: Batch ID limit min(24)|max(30)
+      mutations:
+        - op: set
+          path: BatchId
+          value: BATCH-ID-TOO-LONG-123456789012345678901234567890
+    - name: negative-too-short-batch-id
+      description: "{api_label} BatchId too short"
+      file_stub: negative_too_short_batch_id
+      test_type: negative
+      expected_result: Batch ID limit min(24)|max(30)
+      mutations:
+        - op: set
+          path: BatchId
+          value: B1
+    - name: negative-invalid-enum-request-type
+      description: "{api_label} invalid requestType"
+      file_stub: negative_invalid_enum_request_type
+      test_type: negative
+      expected_result: requestType
+      mutations:
+        - op: set
+          path: requestType
+          value: INVALID
+    - name: negative-invalid-date
+      description: "{api_label} invalid DateTime format"
+      file_stub: negative_invalid_date
+      test_type: negative
+      expected_result: Date Time must be Formatted like this yyyyMMddHHmmss
+      mutations:
+        - op: set
+          path: DateTime
+          value: "2026-99-99"
+    - name: negative-duplicate-request
+      description: "{api_label} duplicate RRN"
+      file_stub: negative_duplicate_request
+      test_type: negative
+      expected_result: '404 NOT_FOUND "Batch not found"'
+      mutations:
+        - op: set
+          path: RRN
+          value: ${DUPLICATE_RRN}
+    - name: negative-malformed-payload
+      description: "{api_label} malformed JSON payload"
+      file_stub: negative_malformed_payload
+      test_type: negative
+      expected_result: JSON parse error
+      mutations:
+        - op: replace_root
+          value: INVALID_PAYLOAD
+    - name: negative-unauthorized-scenario
+      description: "{api_label} unauthorized requestType"
+      file_stub: negative_unauthorized_scenario
+      test_type: negative
+      expected_result: Forbidden
+      mutations:
+        - op: set
+          path: requestType
+          value: unauthorized
+
+  get_batch_variants: &get_batch_variants
+    - name: positive-standard
+      description: "{api_label} success standard request"
+      file_stub: positive_standard
+      test_type: positive
+      expected_result: "200"
+      validation_type: status_code
+    - name: positive-secondary-batch
+      description: "{api_label} success with alternate BatchId"
+      file_stub: positive_secondary_batch
+      test_type: positive
+      expected_result: "200"
+      validation_type: status_code
+      test_data_bindings:
+        batchId: mpg_batch_id_alt
+    - name: negative-null-batch-id
+      description: "{api_label} null batchId"
+      file_stub: negative_null_batch_id
+      test_type: negative
+      expected_result: '404 NOT_FOUND "Batch not found"'
+      mutations:
+        - op: set
+          path: batchId
+          value: null
+    - name: negative-whitespace-batch-id
+      description: "{api_label} blank batchId"
+      file_stub: negative_whitespace_batch_id
+      test_type: negative
+      expected_result: '404 NOT_FOUND "Batch not found"'
+      mutations:
+        - op: set
+          path: batchId
+          value: "   "
+    - name: negative-too-long-batch-id
+      description: "{api_label} batchId too long"
+      file_stub: negative_too_long_batch_id
+      test_type: negative
+      expected_result: '404 NOT_FOUND "Batch not found"'
+      mutations:
+        - op: set
+          path: batchId
+          value: BATCH-VERY-LONG-IDENTIFIER-INVALID-0000001
+    - name: negative-too-short-batch-id
+      description: "{api_label} batchId too short"
+      file_stub: negative_too_short_batch_id
+      test_type: negative
+      expected_result: '404 NOT_FOUND "Batch not found"'
+      mutations:
+        - op: set
+          path: batchId
+          value: B1
+    - name: negative-invalid-enum-batch-id
+      description: "{api_label} invalid batchId"
+      file_stub: negative_invalid_enum_batch_id
+      test_type: negative
+      expected_result: '404 NOT_FOUND "Batch not found"'
+      mutations:
+        - op: set
+          path: batchId
+          value: INVALID
+    - name: negative-malformed-payload
+      description: "{api_label} malformed JSON payload"
+      file_stub: negative_malformed_payload
+      test_type: negative
+      expected_result: '404 NOT_FOUND "Batch not found"'
+      mutations:
+        - op: replace_root
+          value: INVALID_PAYLOAD
+suites:
+  - service: mpg_sender_api
+    api_name: createAuthenticationTokenUsingPOST
+    api_label: Authentication
+    bank: bank1
+    base_request_file: createAuthenticationTokenUsingPOST.json
+    workbook: testcases/sit_testcases_mpg_sender_api.xlsx
+    sheet: MPG_SENDER_API
+    start_id: MPGTC1000
+    request_prefix: mpg_auth
+    expected_result: success
+    validation_type: response
+    trx_type: non-financial
+    test_data_binding_mode: value
+    test_data_bindings: *mpg_auth_bindings
+    variants: *auth_variants
+
+  - service: mpg_sender_api
+    api_name: paymentUsingPOST
+    api_label: Payment
+    bank: bank1
+    base_request_file: paymentUsingPOST.json
+    workbook: testcases/sit_testcases_mpg_sender_api.xlsx
+    sheet: MPG_SENDER_API
+    start_id: MPGTC1100
+    request_prefix: mpg_payment_v1
+    expected_result: success
+    validation_type: response
+    trx_type: financial
+    test_data_binding_mode: value
+    test_data_bindings: *mpg_payment_bindings
+    variants: *batch_payment_variants
+
+  - service: mpg_sender_api
+    api_name: validateUsingPOST
+    api_label: Prevalidation
+    bank: bank1
+    base_request_file: validateUsingPOST.json
+    workbook: testcases/sit_testcases_mpg_sender_api.xlsx
+    sheet: MPG_SENDER_API
+    start_id: MPGTC1200
+    request_prefix: mpg_validate
+    expected_result: success
+    validation_type: response
+    trx_type: financial
+    test_data_binding_mode: value
+    test_data_bindings: *mpg_payment_bindings
+    variants: *batch_payment_variants
+
+  - service: mpg_sender_api
+    api_name: paymentUsingPOST_1
+    api_label: Payment V2
+    bank: bank1
+    base_request_file: paymentUsingPOST_1.json
+    workbook: testcases/sit_testcases_mpg_sender_api.xlsx
+    sheet: MPG_SENDER_API
+    start_id: MPGTC1300
+    request_prefix: mpg_payment_v2
+    expected_result: success
+    validation_type: response
+    trx_type: financial
+    test_data_binding_mode: value
+    test_data_bindings: *mpg_payment_v2_bindings
+    variants: *batch_payment_variants
+
+  - service: mpg_sender_api
+    api_name: paymentInquiryUsingPOST
+    api_label: Payment Inquiry
+    bank: bank1
+    base_request_file: paymentInquiryUsingPOST.json
+    workbook: testcases/sit_testcases_mpg_sender_api.xlsx
+    sheet: MPG_SENDER_API
+    start_id: MPGTC1400
+    request_prefix: mpg_payment_inquiry
+    expected_result: success
+    validation_type: response
+    trx_type: non-financial
+    test_data_binding_mode: value
+    test_data_bindings: *mpg_inquiry_bindings
+    variants: *inquiry_variants
+
+  - service: mpg_sender_api
+    api_name: paymentInquiryV2UsingPOST
+    api_label: Payment Inquiry V2
+    bank: bank1
+    base_request_file: paymentInquiryV2UsingPOST.json
+    workbook: testcases/sit_testcases_mpg_sender_api.xlsx
+    sheet: MPG_SENDER_API
+    start_id: MPGTC1500
+    request_prefix: mpg_payment_inquiry_v2
+    expected_result: success
+    validation_type: response
+    trx_type: non-financial
+    test_data_binding_mode: value
+    test_data_bindings: *mpg_inquiry_v2_bindings
+    variants: *inquiry_v2_variants
+
+  - service: mpg_sender_api
+    api_name: prevalInquiryUsingPOST
+    api_label: Prevalidation Inquiry
+    bank: bank1
+    base_request_file: prevalInquiryUsingPOST.json
+    workbook: testcases/sit_testcases_mpg_sender_api.xlsx
+    sheet: MPG_SENDER_API
+    start_id: MPGTC1600
+    request_prefix: mpg_preval_inquiry
+    expected_result: success
+    validation_type: response
+    trx_type: non-financial
+    test_data_binding_mode: value
+    test_data_bindings: *mpg_preval_inquiry_bindings
+    variants: *inquiry_v2_variants
+
+  - service: mpg_sender_api
+    api_name: resendingPrevalOrPaymentUsingPOST
+    api_label: Resend Prevalidation or Payment
+    bank: bank1
+    base_request_file: resendingPrevalOrPaymentUsingPOST.json
+    workbook: testcases/sit_testcases_mpg_sender_api.xlsx
+    sheet: MPG_SENDER_API
+    start_id: MPGTC1800
+    request_prefix: mpg_resend
+    expected_result: success
+    validation_type: response
+    trx_type: non-financial
+    test_data_binding_mode: value
+    test_data_bindings: *mpg_resend_bindings
+    variants: *resend_variants
+
+  - service: mpg_sender_api
+    api_name: getBatchDetailsUsingGET
+    api_label: Get Batch Details
+    bank: bank1
+    base_request_file: getBatchDetailsUsingGET.json
+    workbook: testcases/sit_testcases_mpg_sender_api.xlsx
+    sheet: MPG_SENDER_API
+    start_id: MPGTC1900
+    request_prefix: mpg_get_batch_details
+    expected_result: success
+    validation_type: response
+    trx_type: non-financial
+    test_data_binding_mode: value
+    test_data_bindings: *mpg_get_batch_bindings
+    variants: *get_batch_variants
+
+  - service: mpg_sender_api
+    api_name: getBatchUsingGET
+    api_label: Get Batch
+    bank: bank1
+    base_request_file: getBatchUsingGET.json
+    workbook: testcases/sit_testcases_mpg_sender_api.xlsx
+    sheet: MPG_SENDER_API
+    start_id: MPGTC2000
+    request_prefix: mpg_get_batch
+    expected_result: success
+    validation_type: response
+    trx_type: non-financial
+    test_data_binding_mode: value
+    test_data_bindings: *mpg_get_batch_bindings
+    variants: *get_batch_variants

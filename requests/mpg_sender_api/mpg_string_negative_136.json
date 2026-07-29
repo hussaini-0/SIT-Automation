@@ -1,0 +1,7 @@
+{
+  "BatchId": "NBPA012411765307480277638",
+  "requestType": "PAYMENTX",
+  "DateTime": "20260724103500",
+  "STAN": "${STAN}",
+  "RRN": "${RRN}"
+}
