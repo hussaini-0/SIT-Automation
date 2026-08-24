@@ -1,5 +1,3 @@
 {
-  "username": "unknown_acq_user",
-  "password": "dib",
-  "channel": "test"
+    "grant_type":  "CLIENT_CREDENTIALS"
 }

@@ -1,0 +1,12 @@
+{
+  "originalRTPRequestDetails": {
+    "originalRTPId": "",
+    "originalMessageId": "",
+    "reasonCode": "",
+    "reasonDescription": ""
+  },
+  "info": {
+    "rrn": "",
+    "stan": ""
+  }
+}

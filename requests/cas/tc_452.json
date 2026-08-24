@@ -3,7 +3,7 @@
   "stan": "${STAN}",
   "uid": {
     "type": "CNIC",
-    "value": "${CNIC}"
+    "value": "${UNIQUE_CNIC_TC452}"
   },
   "action": "activate",
   "status": ""

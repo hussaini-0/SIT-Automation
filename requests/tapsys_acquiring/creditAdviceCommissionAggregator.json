@@ -1,0 +1,24 @@
+{
+  "payerDetails": {
+    "iban": "PK14MCIB0481000001240001",
+    "payerName": "MOHAMMAD FAYYAZ"
+  },
+  "payeeDetails": {
+    "iban": "PK61ABPA0010000019474073",
+    "payeeName": "Imran",
+    "memberId": "MCIB01"
+  },
+  "paymentDetails": {
+    "amount": 110,
+    "currency": "PKR",
+    "reseveredField1": "NA",
+    "reseveredField2": "NA",
+    "reseveredField3": "NA",
+    "reseveredField4": "NA",
+    "reseveredField5": "NA"
+  },
+  "info": {
+    "rrn": "${RRN}",
+    "stan": "${STAN}"
+  }
+}

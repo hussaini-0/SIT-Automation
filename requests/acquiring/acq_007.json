@@ -1,5 +1,3 @@
 {
-  "username": "dib",
-  "password": "dib",
-  "channel": "test"
+    "grant_type":  "${ACQUIRING_KEYCLOAK_GRANT_TYPE}"
 }

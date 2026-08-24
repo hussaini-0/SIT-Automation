@@ -1,0 +1,34 @@
+{
+  "merchantDetails": {
+    "dbaName": "Test Merchant",
+    "merchantName": "Test Merchant",
+    "iban": "PK61ABPA0010000019474073",
+    "country": "PK",
+    "mcc": "5812",
+    "memberId": "@@INVALID@@"
+  },
+  "payerDetails": {
+    "payerName": "MOHAMMAD FAYYAZ",
+    "iban": "PK14MCIB0481000001240001"
+  },
+  "paymentDetails": {
+    "amount": 110,
+    "currency": "PKR",
+    "transactionType": "CREDIT"
+  },
+  "originalPaymentRef": {
+    "originalReferenceId": "REF${RRN}",
+    "originalRelatedDate": "${DATE}"
+  },
+  "reserveFields": {
+    "reseveredField1": "NA",
+    "reseveredField2": "NA",
+    "reseveredField3": "NA",
+    "reseveredField4": "NA",
+    "reseveredField5": "NA"
+  },
+  "info": {
+    "rrn": "${RRN}",
+    "stan": "${STAN}"
+  }
+}

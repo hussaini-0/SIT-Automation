@@ -1,5 +1,3 @@
 {
-  "username": "dib",
-  "password": "wrong_password",
-  "channel": "test"
+    "grant_type":  "authorization_code"
 }

@@ -129,6 +129,7 @@ class DataGenerator:
                 "DATE",
                 "TIME",
                 "DATETIME",
+                "LOCAL_DATETIME",
                 "RTP_ID_UNIQUE",
                 "DUPLICATE_RRN",
             }
@@ -148,6 +149,15 @@ class DataGenerator:
             values["TIME"] = cls.current_time()
         if "DATETIME" in tokens:
             values["DATETIME"] = cls.current_datetime()
+        if "LOCAL_DATETIME" in tokens:
+            values["LOCAL_DATETIME"] = cls.current_datetime("%Y-%m-%dT%H:%M:%S")
         if "RTP_ID_UNIQUE" in tokens:
             values["RTP_ID_UNIQUE"] = cls.generate_rtp_id()
+        for token in sorted(tokens):
+            if token.startswith("UNIQUE_CNIC"):
+                values[token] = f"4{cls.generate_rrn(remember=False)}"
+            elif token.startswith("UNIQUE_MOBILE"):
+                values[token] = f"03{cls.generate_rrn(remember=False)[-9:]}"
+            elif token.startswith("UNIQUE_IBAN"):
+                values[token] = f"PK33MCIB{cls.generate_rrn(remember=False)}0000"
         return values

@@ -1,5 +1,3 @@
 {
-  "username": "dib",
-  "password": null,
-  "channel": "test"
+    "grant_type":  "invalid_grant_type"
 }

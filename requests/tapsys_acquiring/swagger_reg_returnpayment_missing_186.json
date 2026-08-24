@@ -1,0 +1,10 @@
+{
+  "returnPaymentInfo": {
+    "returnReason": "DUPLICATE",
+    "returnAmount": 110
+  },
+  "info": {
+    "rrn": "${RRN}",
+    "stan": "${STAN}"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "senderIdentification": {
+    "idType": "",
+    "idValue": ""
+  },
+  "alias": {
+    "type": "",
+    "value": ""
+  },
+  "account": {
+    "currency": "",
+    "default": false,
+    "isDefault": false
+  },
+  "info": {
+    "rrn": "",
+    "stan": ""
+  }
+}

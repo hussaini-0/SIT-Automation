@@ -1,0 +1,14 @@
+{
+  "senderIdentification": {
+    "idType": "",
+    "idValue": ""
+  },
+  "merchantAlias": {
+    "value": ""
+  },
+  "statusAction": "",
+  "info": {
+    "rrn": "",
+    "stan": ""
+  }
+}

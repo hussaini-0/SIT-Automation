@@ -3,10 +3,10 @@
   "stan": "${STAN}",
   "uid": {
     "type": "CNIC",
-    "value": "${CNIC_2}"
+    "value": "${UNIQUE_CNIC_TC107}"
   },
   "documentType": "CNIC",
-  "documentNumber": "${CNIC_2}",
+  "documentNumber": "${UNIQUE_CNIC_TC107}",
   "name": "faizulamin",
   "surname": "faizulamin",
   "gender": "MALE",
@@ -16,14 +16,14 @@
   "aliases": [
     {
       "type": "MOBILE",
-      "value": "${MOBILE_2}",
+      "value": "${UNIQUE_MOBILE_TC107}",
       "status": "active",
       "startDate": "2026-06-08",
       "expirationDate": "2030-06-08",
       "accounts": [
         {
           "id": {
-            "iban": "${IBAN_2}"
+            "iban": "${UNIQUE_IBAN_TC107}"
           },
           "currency": "PKR",
           "isDefault": true,

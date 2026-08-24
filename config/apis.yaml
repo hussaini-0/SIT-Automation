@@ -37,7 +37,7 @@ services:
       deletecustomer: test
       onestep: ib
       getdefaultaccount: test
-      registercaa: ib
+      registercaa: test
     apis:
       authenticate:
         endpoint: authenticate
@@ -206,7 +206,7 @@ services:
           - from: account-information.acctitle
             to: RECEIVER_NAME
   acquiring:
-    display_name: Acquiring Service
+    display_name: Acquiring
     auth:
       apis:
       - authenticate
@@ -214,12 +214,53 @@ services:
     token_routing:
       transaction: default
       transaction_status: default
+      creditAdvice: default
+      generateRTPandDynamicQRC: default
+      creditAdvicePosSettlement: default
+      returnPayment: default
+      paymentInquiryDqrc: default
+      creditAdvice_1: default
+      creditAdviceOnus: default
+      creditAdviceOffUs: default
+      creditAdviceCommissionAggregator: default
+      creditAdviceBatch: default
+      updateMerchantStatus: default
+      updateMerchantInfo: default
+      titleFetch: default
+      titleFetchRTP: default
+      rtpInquiry: default
+      rtpIdValidate: default
+      getDefaultAccountByAliasRTP: default
+      generateRTP: default
+      rtpCancelletion: default
+      RTPNow: default
+      RTPLater: default
+      DynamicQRC: default
+      registerMerchant: default
+      RTPPreApproved: default
+      getMerchantInfo: default
+      getDefaultAccountByAlias: default
+      getMerchantAliasesAndAccounts: default
+      oneStepDelete: default
+      creditAdvice_2: default
+      updateAliasStatus: default
+      updateAliasInfo: default
+      registerMerchantAlias: default
+      updateAccountStatus: default
+      defineDefaultAccount: default
+      registerMerchantAccount: default
+      linkAccountToAlias: default
+      delinkAccountToAlias: default
+      updateCertificate: default
+      creditAdviceBackOffice: default
     apis:
       authenticate:
-        endpoint: /auth/login
+        endpoint: ${ACQUIRING_KEYCLOAK_TOKEN_URL}
         method: POST
+        verify_ssl: false
         headers:
-          Content-Type: application/json
+          Authorization: Basic ${ACQUIRING_KEYCLOAK_BASIC_AUTH}
+          Content-Type: application/x-www-form-urlencoded
       transaction:
         endpoint: /api/v1/transactions
         method: POST
@@ -228,6 +269,201 @@ services:
       transaction_status:
         endpoint: /api/v1/transactions/{transaction_id}/status
         method: GET
+        headers:
+          Content-Type: application/json
+      creditAdvice:
+        endpoint: /api/v2/paysyslabs/acquiring/payment/creditAdvice
+        method: POST
+        headers:
+          Content-Type: application/json
+      generateRTPandDynamicQRC:
+        endpoint: /api/v2/paysyslabs/acquiring/merchant/rtp/DQRC
+        method: POST
+        headers:
+          Content-Type: application/json
+      creditAdvicePosSettlement:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/settlement/creditAdvice
+        method: POST
+        headers:
+          Content-Type: application/json
+      returnPayment:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/returnPayment
+        method: POST
+        headers:
+          Content-Type: application/json
+      paymentInquiryDqrc:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/inquiry/dqrc
+        method: POST
+        headers:
+          Content-Type: application/json
+      creditAdvice_1:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/creditAdvice
+        method: POST
+        headers:
+          Content-Type: application/json
+      creditAdviceOnus:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/creditAdvice/onus
+        method: POST
+        headers:
+          Content-Type: application/json
+      creditAdviceOffUs:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/creditAdvice/offus
+        method: POST
+        headers:
+          Content-Type: application/json
+      creditAdviceCommissionAggregator:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/commissionAggregator/creditAdvice
+        method: POST
+        headers:
+          Content-Type: application/json
+      creditAdviceBatch:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/batch/creditAdvice
+        method: POST
+        headers:
+          Content-Type: application/json
+      updateMerchantStatus:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/updateStatus
+        method: POST
+        headers:
+          Content-Type: application/json
+      updateMerchantInfo:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/updateInfo
+        method: POST
+        headers:
+          Content-Type: application/json
+      titleFetch:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/titleFetch
+        method: POST
+        headers:
+          Content-Type: application/json
+      titleFetchRTP:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/titleFetch
+        method: POST
+        headers:
+          Content-Type: application/json
+      rtpInquiry:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/inquiry
+        method: POST
+        headers:
+          Content-Type: application/json
+      rtpIdValidate:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/id/validate
+        method: POST
+        headers:
+          Content-Type: application/json
+      getDefaultAccountByAliasRTP:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/getDefaultAccountByAlias
+        method: POST
+        headers:
+          Content-Type: application/json
+      generateRTP:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/generateRTP
+        method: POST
+        headers:
+          Content-Type: application/json
+      rtpCancelletion:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/cancellation
+        method: POST
+        headers:
+          Content-Type: application/json
+      RTPNow:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/RTPN
+        method: POST
+        headers:
+          Content-Type: application/json
+      RTPLater:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/RTPL
+        method: POST
+        headers:
+          Content-Type: application/json
+      DynamicQRC:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/DQRC
+        method: POST
+        headers:
+          Content-Type: application/json
+      registerMerchant:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/registerMerchant
+        method: POST
+        headers:
+          Content-Type: application/json
+      RTPPreApproved:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/preApprovedRTP
+        method: POST
+        headers:
+          Content-Type: application/json
+      getMerchantInfo:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/getMerchantInfo
+        method: POST
+        headers:
+          Content-Type: application/json
+      getDefaultAccountByAlias:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/getDefaultAccountByAlias
+        method: POST
+        headers:
+          Content-Type: application/json
+      getMerchantAliasesAndAccounts:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/getAliasesAndAccounts
+        method: POST
+        headers:
+          Content-Type: application/json
+      oneStepDelete:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/delete
+        method: POST
+        headers:
+          Content-Type: application/json
+      creditAdvice_2:
+        endpoint: /api/v1/paysyslabs/acquiring/inquiry/creditAdvice
+        method: POST
+        headers:
+          Content-Type: application/json
+      updateAliasStatus:
+        endpoint: /api/v1/paysyslabs/acquiring/alias/updateAliasStatus
+        method: POST
+        headers:
+          Content-Type: application/json
+      updateAliasInfo:
+        endpoint: /api/v1/paysyslabs/acquiring/alias/updateAliasInfo
+        method: POST
+        headers:
+          Content-Type: application/json
+      registerMerchantAlias:
+        endpoint: /api/v1/paysyslabs/acquiring/alias/registerAlias
+        method: POST
+        headers:
+          Content-Type: application/json
+      updateAccountStatus:
+        endpoint: /api/v1/paysyslabs/acquiring/account/updateAccountStatus
+        method: POST
+        headers:
+          Content-Type: application/json
+      defineDefaultAccount:
+        endpoint: /api/v1/paysyslabs/acquiring/account/setDefault
+        method: POST
+        headers:
+          Content-Type: application/json
+      registerMerchantAccount:
+        endpoint: /api/v1/paysyslabs/acquiring/account/registerAccount
+        method: POST
+        headers:
+          Content-Type: application/json
+      linkAccountToAlias:
+        endpoint: /api/v1/paysyslabs/acquiring/account/linkAccountToAlias
+        method: POST
+        headers:
+          Content-Type: application/json
+      delinkAccountToAlias:
+        endpoint: /api/v1/paysyslabs/acquiring/account/delinkAccountFromAlias
+        method: POST
+        headers:
+          Content-Type: application/json
+      updateCertificate:
+        endpoint: /update?participants={participants}
+        method: GET
+        headers:
+          Content-Type: application/json
+      creditAdviceBackOffice:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/creditAdvice/backOffice
+        method: POST
         headers:
           Content-Type: application/json
   merchant_cas:
@@ -356,6 +592,267 @@ services:
       getBatchUsingGET:
         endpoint: /test/bulksending/batch/get/{batchId}
         method: GET
+        headers:
+          Content-Type: application/json
+  tapsys_acquiring:
+    display_name: tapsys Acquiring
+    auth:
+      apis:
+      - authenticate
+      token_json_path: access_token
+    token_routing:
+      transaction: default
+      transaction_status: default
+      creditAdvice: default
+      generateRTPandDynamicQRC: default
+      creditAdvicePosSettlement: default
+      returnPayment: default
+      paymentInquiryDqrc: default
+      creditAdvice_1: default
+      creditAdviceOnus: default
+      creditAdviceOffUs: default
+      creditAdviceCommissionAggregator: default
+      creditAdviceBatch: default
+      updateMerchantStatus: default
+      updateMerchantInfo: default
+      titleFetch: default
+      titleFetchRTP: default
+      rtpInquiry: default
+      rtpIdValidate: default
+      getDefaultAccountByAliasRTP: default
+      generateRTP: default
+      rtpCancelletion: default
+      RTPNow: default
+      RTPLater: default
+      DynamicQRC: default
+      registerMerchant: default
+      RTPPreApproved: default
+      getMerchantInfo: default
+      getDefaultAccountByAlias: default
+      getMerchantAliasesAndAccounts: default
+      oneStepDelete: default
+      creditAdvice_2: default
+      updateAliasStatus: default
+      updateAliasInfo: default
+      registerMerchantAlias: default
+      updateAccountStatus: default
+      defineDefaultAccount: default
+      registerMerchantAccount: default
+      linkAccountToAlias: default
+      delinkAccountToAlias: default
+      updateCertificate: default
+      creditAdviceBackOffice: default
+    apis:
+      authenticate:
+        endpoint: ${TAPSYS_ACQUIRING_KEYCLOAK_TOKEN_URL}
+        method: POST
+        verify_ssl: false
+        headers:
+          Authorization: Basic ${TAPSYS_ACQUIRING_KEYCLOAK_BASIC_AUTH}
+          Content-Type: application/x-www-form-urlencoded
+      transaction:
+        endpoint: /api/v1/transactions
+        method: POST
+        headers:
+          Content-Type: application/json
+      transaction_status:
+        endpoint: /api/v1/transactions/{transaction_id}/status
+        method: GET
+        headers:
+          Content-Type: application/json
+      creditAdvice:
+        endpoint: /api/v2/paysyslabs/acquiring/payment/creditAdvice
+        method: POST
+        headers:
+          Content-Type: application/json
+      generateRTPandDynamicQRC:
+        endpoint: /api/v2/paysyslabs/acquiring/merchant/rtp/DQRC
+        method: POST
+        headers:
+          Content-Type: application/json
+      creditAdvicePosSettlement:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/settlement/creditAdvice
+        method: POST
+        headers:
+          Content-Type: application/json
+      returnPayment:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/returnPayment
+        method: POST
+        headers:
+          Content-Type: application/json
+      paymentInquiryDqrc:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/inquiry/dqrc
+        method: POST
+        headers:
+          Content-Type: application/json
+      creditAdvice_1:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/creditAdvice
+        method: POST
+        headers:
+          Content-Type: application/json
+      creditAdviceOnus:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/creditAdvice/onus
+        method: POST
+        headers:
+          Content-Type: application/json
+      creditAdviceOffUs:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/creditAdvice/offus
+        method: POST
+        headers:
+          Content-Type: application/json
+      creditAdviceCommissionAggregator:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/commissionAggregator/creditAdvice
+        method: POST
+        headers:
+          Content-Type: application/json
+      creditAdviceBatch:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/batch/creditAdvice
+        method: POST
+        headers:
+          Content-Type: application/json
+      updateMerchantStatus:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/updateStatus
+        method: POST
+        headers:
+          Content-Type: application/json
+      updateMerchantInfo:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/updateInfo
+        method: POST
+        headers:
+          Content-Type: application/json
+      titleFetch:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/titleFetch
+        method: POST
+        headers:
+          Content-Type: application/json
+      titleFetchRTP:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/titleFetch
+        method: POST
+        headers:
+          Content-Type: application/json
+      rtpInquiry:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/inquiry
+        method: POST
+        headers:
+          Content-Type: application/json
+      rtpIdValidate:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/id/validate
+        method: POST
+        headers:
+          Content-Type: application/json
+      getDefaultAccountByAliasRTP:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/getDefaultAccountByAlias
+        method: POST
+        headers:
+          Content-Type: application/json
+      generateRTP:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/generateRTP
+        method: POST
+        headers:
+          Content-Type: application/json
+      rtpCancelletion:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/cancellation
+        method: POST
+        headers:
+          Content-Type: application/json
+      RTPNow:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/RTPN
+        method: POST
+        headers:
+          Content-Type: application/json
+      RTPLater:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/RTPL
+        method: POST
+        headers:
+          Content-Type: application/json
+      DynamicQRC:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/rtp/DQRC
+        method: POST
+        headers:
+          Content-Type: application/json
+      registerMerchant:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/registerMerchant
+        method: POST
+        headers:
+          Content-Type: application/json
+      RTPPreApproved:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/preApprovedRTP
+        method: POST
+        headers:
+          Content-Type: application/json
+      getMerchantInfo:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/getMerchantInfo
+        method: POST
+        headers:
+          Content-Type: application/json
+      getDefaultAccountByAlias:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/getDefaultAccountByAlias
+        method: POST
+        headers:
+          Content-Type: application/json
+      getMerchantAliasesAndAccounts:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/getAliasesAndAccounts
+        method: POST
+        headers:
+          Content-Type: application/json
+      oneStepDelete:
+        endpoint: /api/v1/paysyslabs/acquiring/merchant/delete
+        method: POST
+        headers:
+          Content-Type: application/json
+      creditAdvice_2:
+        endpoint: /api/v1/paysyslabs/acquiring/inquiry/creditAdvice
+        method: POST
+        headers:
+          Content-Type: application/json
+      updateAliasStatus:
+        endpoint: /api/v1/paysyslabs/acquiring/alias/updateAliasStatus
+        method: POST
+        headers:
+          Content-Type: application/json
+      updateAliasInfo:
+        endpoint: /api/v1/paysyslabs/acquiring/alias/updateAliasInfo
+        method: POST
+        headers:
+          Content-Type: application/json
+      registerMerchantAlias:
+        endpoint: /api/v1/paysyslabs/acquiring/alias/registerAlias
+        method: POST
+        headers:
+          Content-Type: application/json
+      updateAccountStatus:
+        endpoint: /api/v1/paysyslabs/acquiring/account/updateAccountStatus
+        method: POST
+        headers:
+          Content-Type: application/json
+      defineDefaultAccount:
+        endpoint: /api/v1/paysyslabs/acquiring/account/setDefault
+        method: POST
+        headers:
+          Content-Type: application/json
+      registerMerchantAccount:
+        endpoint: /api/v1/paysyslabs/acquiring/account/registerAccount
+        method: POST
+        headers:
+          Content-Type: application/json
+      linkAccountToAlias:
+        endpoint: /api/v1/paysyslabs/acquiring/account/linkAccountToAlias
+        method: POST
+        headers:
+          Content-Type: application/json
+      delinkAccountToAlias:
+        endpoint: /api/v1/paysyslabs/acquiring/account/delinkAccountFromAlias
+        method: POST
+        headers:
+          Content-Type: application/json
+      updateCertificate:
+        endpoint: /update
+        method: GET
+        headers:
+          Content-Type: application/json
+      creditAdviceBackOffice:
+        endpoint: /api/v1/paysyslabs/acquiring/payment/creditAdvice/backOffice
+        method: POST
         headers:
           Content-Type: application/json
 auth:

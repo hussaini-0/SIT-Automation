@@ -1,0 +1,11 @@
+{
+  "returnPaymentInfo": {
+    "orgnlMessageId": "REF${RRN}",
+    "returnReason": "DUPLICATE",
+    "returnAmount": -1
+  },
+  "info": {
+    "rrn": "${RRN}",
+    "stan": "${STAN}"
+  }
+}

@@ -39,6 +39,8 @@ def _redact_secret_text(text: str) -> str:
     redacted = LONG_DIGIT_PATTERN.sub(_mask_long_number, redacted)
     if redacted.lower().startswith("bearer "):
         return "Bearer [REDACTED]"
+    if redacted.lower().startswith("basic "):
+        return "Basic [REDACTED]"
     return redacted
 
 

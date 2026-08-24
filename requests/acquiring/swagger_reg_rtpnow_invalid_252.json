@@ -1,0 +1,65 @@
+{
+  "merchantDetails": {
+    "dbaName": "",
+    "merchantName": "",
+    "iban": "",
+    "country": "",
+    "merchantCategoryCode": "",
+    "merchantIdAlias": "@@INVALID@@",
+    "postalAddress": {
+      "townName": "",
+      "subDept": "",
+      "addressLine": ""
+    },
+    "contactDetails": {
+      "phoneNo": "",
+      "mobileNo": "",
+      "email": "",
+      "dept": "",
+      "website": "",
+      "merchantChannelId": ""
+    },
+    "geoLocation": {
+      "lat": "",
+      "long": ""
+    }
+  },
+  "payerDetails": {
+    "memberId": "",
+    "payerName": "",
+    "iban": "",
+    "additionalRequiredDetails": "",
+    "identificationDetails": {
+      "loyaltyNo": "",
+      "customerLabel": ""
+    }
+  },
+  "paymentDetails": {
+    "executionDateTime": "${DATETIME}",
+    "expiryDateTime": "${DATETIME}",
+    "purpose": "",
+    "taxId": "",
+    "billno": "",
+    "currency": "",
+    "amount": {
+      "instructedAmount": 0,
+      "delayPenaltyAmount": 0,
+      "amountModificationAllowed": false,
+      "earlyPaymentAllowed": false,
+      "isAmountModificationAllowed": false,
+      "isEarlyPaymentAllowed": false
+    },
+    "RTPId": ""
+  },
+  "info": {
+    "rrn": "",
+    "stan": ""
+  },
+  "reserveFields": {
+    "reseveredField1": "",
+    "reseveredField2": "",
+    "reseveredField3": "",
+    "reseveredField4": "",
+    "reseveredField5": ""
+  }
+}

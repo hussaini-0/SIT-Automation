@@ -3,6 +3,7 @@ import copy
 import json
 import os
 import re
+import sys
 import tempfile
 import threading
 import time
@@ -11,8 +12,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 import yaml
+
+ROOT_DIR = Path(__file__).resolve().parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 from services.config_service import resolve_yaml_path
 from services.testcase_service import select_testcase_inventory, to_runner_testcase
@@ -351,7 +357,10 @@ class SITRunner:
                 service=testcase.service,
                 bank_name=testcase.bank,
             )
-            endpoint = self._apply_endpoint_params(str(api_definition["endpoint"]), payload)
+            endpoint = self._render_config_text(
+                self._apply_endpoint_params(str(api_definition["endpoint"]), payload),
+                testcase.bank,
+            )
             url = self._build_url(bank_base_url, endpoint)
             headers = self._build_request_headers(api_definition, testcase.api_name, testcase.service, testcase.bank)
             payload, response = self._call_api_with_account_fallback(
@@ -440,7 +449,10 @@ class SITRunner:
             bank_name=testcase.bank,
         )
         initial_endpoint = self._apply_endpoint_params(str(initial_api_definition["endpoint"]), initial_payload)
-        initial_url = self._build_url(bank_base_url, initial_endpoint)
+        initial_url = self._build_url(
+            bank_base_url,
+            self._render_config_text(initial_endpoint, testcase.bank),
+        )
 
         initial_headers = self._build_request_headers(
             initial_api_definition, initial_api_name, testcase.service, testcase.bank
@@ -450,6 +462,7 @@ class SITRunner:
             url=initial_url,
             payload=initial_payload,
             headers=initial_headers,
+            verify_ssl=self._verify_ssl(initial_api_definition),
         )
 
         # If flow uses polling (legacy), keep previous behavior
@@ -539,7 +552,10 @@ class SITRunner:
                     bank_name=testcase.bank,
                 )
                 next_endpoint = self._apply_endpoint_params(str(next_api_definition["endpoint"]), next_payload)
-                next_url = self._build_url(bank_base_url, next_endpoint)
+                next_url = self._build_url(
+                    bank_base_url,
+                    self._render_config_text(next_endpoint, testcase.bank),
+                )
                 next_headers = self._build_request_headers(
                     next_api_definition, next_api_name, testcase.service, testcase.bank
                 )
@@ -548,6 +564,7 @@ class SITRunner:
                     url=next_url,
                     payload=next_payload,
                     headers=next_headers,
+                    verify_ssl=self._verify_ssl(next_api_definition),
                 )
 
                 validation = self.validator.validate(
@@ -664,7 +681,10 @@ class SITRunner:
                 self._set_path_value(polling_payload, correlation_target_path, correlation_value)
 
             poll_endpoint = self._apply_endpoint_params(str(api_definition["endpoint"]), polling_payload)
-            poll_url = self._build_url(bank_base_url, poll_endpoint)
+            poll_url = self._build_url(
+                bank_base_url,
+                self._render_config_text(poll_endpoint, bank_name),
+            )
             polling_headers = self._build_request_headers(
                 api_definition, polling_api_name, service, bank_name
             )
@@ -673,6 +693,7 @@ class SITRunner:
                 url=poll_url,
                 payload=polling_payload,
                 headers=polling_headers,
+                verify_ssl=self._verify_ssl(api_definition),
             )
             response["request_payload"] = polling_payload
             response["request_headers"] = polling_headers
@@ -743,15 +764,37 @@ class SITRunner:
         rendered = TemplateEngine.render_template(template, values)
         return rendered
 
+    def _render_config_text(self, value: str, bank_name: str = "") -> str:
+        """Render ${TOKEN} placeholders in config values such as external auth URLs."""
+        if "${" not in str(value):
+            return str(value)
+        bank_tokens = self._bank_test_data_tokens(bank_name)
+        values = dict(self.test_data_tokens)
+        values.update(bank_tokens)
+        return TemplateEngine.render_template(str(value), values)
+
     def _build_request_headers(
         self, api_definition: Dict[str, Any], api_name: str = "", service: str = "cas", bank_name: str = ""
     ) -> Dict[str, str]:
         """Build request headers with service-aware token injection."""
-        headers = dict(api_definition.get("headers", {}))
-        token_value = self._get_token_for_api(api_name, service, bank_name) if api_name else ""
-        if token_value:
-            headers["Authorization"] = f"Bearer {token_value}"
+        headers = {
+            str(key): self._render_config_text(str(value), bank_name)
+            for key, value in dict(api_definition.get("headers", {})).items()
+        }
+        if api_name and api_name not in self._auth_api_names(service):
+            token_value = self._get_token_for_api(api_name, service, bank_name)
+            if token_value and (
+                "Authorization" not in headers or str(headers["Authorization"]).lower().startswith("bearer ")
+            ):
+                headers["Authorization"] = f"Bearer {token_value}"
         return headers
+
+    @staticmethod
+    def _verify_ssl(api_definition: Dict[str, Any]) -> bool:
+        value = api_definition.get("verify_ssl", True)
+        if isinstance(value, str):
+            return value.strip().lower() not in {"0", "false", "no", "off"}
+        return bool(value)
 
     def _load_account_fallbacks(self, *sources: Dict[str, Any]) -> List[Dict[str, str]]:
         accounts: List[Dict[str, str]] = []
@@ -784,13 +827,17 @@ class SITRunner:
         headers: Dict[str, str],
     ) -> tuple[Dict[str, Any], Dict[str, Any]]:
         current_payload = payload
-        current_endpoint = self._apply_endpoint_params(endpoint_template, current_payload)
+        current_endpoint = self._render_config_text(
+            self._apply_endpoint_params(endpoint_template, current_payload),
+            testcase.bank,
+        )
         current_url = self._build_url(bank_base_url, current_endpoint)
         response = self.api_client.call(
             method=str(api_definition["method"]).upper(),
             url=current_url,
             payload=current_payload,
             headers=headers,
+            verify_ssl=self._verify_ssl(api_definition),
         )
 
         if not self._should_retry_closed_account(testcase, current_payload, response):
@@ -808,7 +855,10 @@ class SITRunner:
                 continue
 
             tried_ibans.update(self._collect_payload_ibans(retry_payload))
-            retry_endpoint = self._apply_endpoint_params(endpoint_template, retry_payload)
+            retry_endpoint = self._render_config_text(
+                self._apply_endpoint_params(endpoint_template, retry_payload),
+                testcase.bank,
+            )
             retry_url = self._build_url(bank_base_url, retry_endpoint)
             self.framework_logger.warning(
                 "[%s] Closed/inactive account detected for tc_id=%s. Retrying %s with fallback IBAN %s",
@@ -822,6 +872,7 @@ class SITRunner:
                 url=retry_url,
                 payload=retry_payload,
                 headers=headers,
+                verify_ssl=self._verify_ssl(api_definition),
             )
             current_payload = retry_payload
             if not self._should_retry_closed_account(testcase, current_payload, last_response):
@@ -1272,6 +1323,9 @@ class SITRunner:
 
     @staticmethod
     def _build_url(base_url: str, endpoint: str) -> str:
+        parsed = urlparse(endpoint)
+        if parsed.scheme and parsed.netloc:
+            return endpoint
         return base_url.rstrip("/") + "/" + endpoint.lstrip("/")
 
     def _apply_endpoint_params(self, endpoint: str, payload: Any) -> str:
@@ -1285,10 +1339,10 @@ class SITRunner:
                     field_name,
                     endpoint,
                 )
-                return match.group(0)
+                return ""
             return str(value)
 
-        return re.sub(r"\{([^{}]+)\}", replace, endpoint)
+        return re.sub(r"(?<!\$)\{([^{}]+)\}", replace, endpoint)
 
     @staticmethod
     def _tc_order_key(tc_id: str) -> int:

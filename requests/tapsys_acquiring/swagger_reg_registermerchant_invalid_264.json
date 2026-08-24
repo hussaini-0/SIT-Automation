@@ -1,0 +1,30 @@
+{
+  "senderIdentification": {
+    "idType": "",
+    "idValue": ""
+  },
+  "merchantDetails": {
+    "name": "",
+    "documentType": "",
+    "documentNumber": "",
+    "documentValidityDate": "2026-99-99",
+    "address": {
+      "country": "",
+      "city": "",
+      "stateProvinceRegion": "",
+      "address": ""
+    }
+  },
+  "additionalDetails": {
+    "dba": "",
+    "mcc": ""
+  },
+  "additionalDetailsPrivate": {
+    "type": "",
+    "aggregator": ""
+  },
+  "info": {
+    "rrn": "",
+    "stan": ""
+  }
+}

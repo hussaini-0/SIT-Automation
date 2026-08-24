@@ -1,0 +1,29 @@
+{
+  "senderIdentification": {
+    "idType": "",
+    "idValue": ""
+  },
+  "merchantDetails": {
+    "name": "",
+    "documentType": "",
+    "documentNumber": "",
+    "address": {
+      "country": "",
+      "city": "",
+      "stateProvinceRegion": "",
+      "address": ""
+    }
+  },
+  "additionalDetails": {
+    "dba": "",
+    "mcc": ""
+  },
+  "additionalDetailsPrivate": {
+    "type": "",
+    "aggregator": ""
+  },
+  "info": {
+    "rrn": "",
+    "stan": ""
+  }
+}

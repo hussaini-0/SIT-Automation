@@ -36,7 +36,7 @@
         },
         {
           "id": {
-            "iban": "${IBAN_3}"
+            "iban": "${UNIQUE_IBAN_TC123_SECONDARY}"
           },
           "currency": "PKR",
           "isDefault": false,

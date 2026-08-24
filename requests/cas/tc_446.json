@@ -3,10 +3,10 @@
   "stan": "${STAN}",
   "uid": {
     "type": "CNIC",
-    "value": "${CNIC}"
+    "value": "${UNIQUE_CNIC_TC446}"
   },
   "documentType": "CNIC",
-  "documentNumber": "${CNIC}",
+  "documentNumber": "${UNIQUE_CNIC_TC446}",
   "name": "A",
   "surname": "faiz",
   "gender": "MALE",

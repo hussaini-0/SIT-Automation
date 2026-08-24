@@ -1,0 +1,16 @@
+{
+  "senderIdentification": {
+    "idType": "",
+    "idValue": ""
+  },
+  "account": {
+    "iban": null,
+    "default": false,
+    "isDefault": false
+  },
+  "statusAction": "",
+  "info": {
+    "rrn": "",
+    "stan": ""
+  }
+}

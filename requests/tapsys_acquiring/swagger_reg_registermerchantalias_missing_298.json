@@ -1,0 +1,24 @@
+{
+  "senderIdentification": {
+    "idType": "",
+    "idValue": ""
+  },
+  "merchantAlias": {
+    "type": "",
+    "value": "",
+    "expirationDate": "",
+    "status": ""
+  },
+  "accounts": [
+    {
+      "iban": "",
+      "currency": "",
+      "default": false,
+      "isDefault": false
+    }
+  ],
+  "info": {
+    "rrn": "",
+    "stan": ""
+  }
+}

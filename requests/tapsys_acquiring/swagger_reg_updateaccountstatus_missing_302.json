@@ -1,0 +1,15 @@
+{
+  "senderIdentification": {
+    "idType": "",
+    "idValue": ""
+  },
+  "account": {
+    "default": false,
+    "isDefault": false
+  },
+  "statusAction": "",
+  "info": {
+    "rrn": "",
+    "stan": ""
+  }
+}

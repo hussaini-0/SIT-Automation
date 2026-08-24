@@ -3,10 +3,10 @@
   "stan": "${STAN}",
   "uid": {
     "type": "CNIC",
-    "value": "${CNIC2}"
+    "value": "${UNIQUE_CNIC_TC243}"
   },
   "documentType": "CNIC",
-  "documentNumber": "${CNIC2}",
+  "documentNumber": "${UNIQUE_CNIC_TC243}",
   "name": "Faiz Ul Amin Khan",
   "surname": "faiz",
   "gender": "MALE",

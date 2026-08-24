@@ -1,0 +1,3 @@
+{
+    "grant_type":  "${ACQUIRING_KEYCLOAK_GRANT_TYPE}"
+}

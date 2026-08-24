@@ -1,0 +1,16 @@
+{
+  "senderIdentification": {
+    "idType": "",
+    "idValue": ""
+  },
+  "merchantAlias": {
+    "type": "",
+    "value": "",
+    "startDate": "",
+    "expirationDate": "1900-01-01"
+  },
+  "info": {
+    "rrn": "",
+    "stan": ""
+  }
+}

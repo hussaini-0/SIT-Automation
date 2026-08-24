@@ -6,6 +6,8 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from utils.redaction import redact_sensitive
+
 
 class ApiClient:
     def __init__(
@@ -66,13 +68,25 @@ class ApiClient:
         url: str,
         payload: Optional[Dict[str, Any]],
         headers: Optional[Dict[str, str]],
+        verify_ssl: bool = True,
     ) -> requests.Response:
+        content_type = str((headers or {}).get("Content-Type", "")).lower()
+        if "application/x-www-form-urlencoded" in content_type:
+            return self.session.request(
+                method=method,
+                url=url,
+                data=payload,
+                headers=headers,
+                timeout=self.timeout_seconds,
+                verify=verify_ssl,
+            )
         return self.session.request(
             method=method,
             url=url,
             json=payload,
             headers=headers,
             timeout=self.timeout_seconds,
+            verify=verify_ssl,
         )
 
     def call(
@@ -81,21 +95,22 @@ class ApiClient:
         url: str,
         payload: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
+        verify_ssl: bool = True,
     ) -> Dict[str, Any]:
         request_started = time.perf_counter()
         self.request_logger.info(
             "REQUEST | %s | %s | headers=%s | payload=%s",
             method,
             url,
-            json.dumps(headers or {}, ensure_ascii=False),
-            json.dumps(payload or {}, ensure_ascii=False),
+            json.dumps(redact_sensitive(headers or {}), ensure_ascii=False),
+            json.dumps(redact_sensitive(payload or {}), ensure_ascii=False),
         )
 
         attempt = 0
         while True:
             attempt += 1
             try:
-                response = self._request_once(method, url, payload, headers)
+                response = self._request_once(method, url, payload, headers, verify_ssl)
                 break
             except requests.RequestException as exc:
                 elapsed_ms = int((time.perf_counter() - request_started) * 1000)
@@ -127,7 +142,7 @@ class ApiClient:
                 url,
                 response.status_code,
                 elapsed_ms,
-                json.dumps(parsed_body, ensure_ascii=False),
+                json.dumps(redact_sensitive(parsed_body), ensure_ascii=False),
             )
 
             return {

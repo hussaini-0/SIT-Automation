@@ -1,0 +1,30 @@
+{
+  "payerDetails": {
+    "payerName": "",
+    "iban": "PK9999999999999999999999999999999999999999"
+  },
+  "merchantDetails": {
+    "dbaName": "",
+    "merchantName": "",
+    "iban": "",
+    "country": "",
+    "mcc": "",
+    "memberId": ""
+  },
+  "paymentDetails": {
+    "amount": 0,
+    "currency": "",
+    "transactionType": ""
+  },
+  "reserveFields": {
+    "reseveredField1": "",
+    "reseveredField2": "",
+    "reseveredField3": "",
+    "reseveredField4": "",
+    "reseveredField5": ""
+  },
+  "info": {
+    "rrn": "",
+    "stan": ""
+  }
+}

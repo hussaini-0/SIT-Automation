@@ -1,0 +1,25 @@
+{
+  "payerDetails": {
+    "payerName": ""
+  },
+  "payeeDetails": {
+    "memberId": "",
+    "payeeName": "",
+    "iban": ""
+  },
+  "paymentDetail": {
+    "amount": 0,
+    "currency": "",
+    "ttc": "",
+    "purpose": "",
+    "cardAuthorizationCode": "",
+    "cardAuthorizationDate": "",
+    "additionalMerchantDetails": "",
+    "instructedAmount": 0,
+    "cardIssuerId": ""
+  },
+  "info": {
+    "rrn": "",
+    "stan": ""
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "customerDetails": {
+    "memberid": null,
+    "iban": ""
+  },
+  "info": {
+    "rrn": "",
+    "stan": ""
+  }
+}

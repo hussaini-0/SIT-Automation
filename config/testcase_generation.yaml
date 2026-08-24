@@ -111,7 +111,7 @@ common:
       description: Authentication null username
       file_stub: negative_null_username
       test_type: negative
-      expected_result: Invalid  IP Address
+      expected_result: invalid username/pass
       mutations:
         - op: set
           path: username
@@ -120,7 +120,7 @@ common:
       description: Authentication blank username
       file_stub: negative_whitespace_username
       test_type: negative
-      expected_result: Invalid  IP Address
+      expected_result: invalid username/pass
       mutations:
         - op: set
           path: username
@@ -129,7 +129,7 @@ common:
       description: Authentication username too long
       file_stub: negative_too_long_username
       test_type: negative
-      expected_result: Invalid  IP Address
+      expected_result: invalid username/pass
       mutations:
         - op: set
           path: username
@@ -138,7 +138,7 @@ common:
       description: Authentication password too short
       file_stub: negative_too_short_password
       test_type: negative
-      expected_result: Invalid  IP Address
+      expected_result: invalid username/pass
       mutations:
         - op: set
           path: password
@@ -164,7 +164,7 @@ common:
       description: Authentication invalid password
       file_stub: negative_unauthorized_scenario
       test_type: negative
-      expected_result: Invalid  IP Address
+      expected_result: invalid username/pass
       mutations:
         - op: set
           path: password

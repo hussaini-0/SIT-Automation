@@ -1,0 +1,3 @@
+{
+    "grant_type":  "${TAPSYS_ACQUIRING_KEYCLOAK_GRANT_TYPE}"
+}

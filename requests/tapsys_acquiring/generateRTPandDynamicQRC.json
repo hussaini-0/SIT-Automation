@@ -1,0 +1,59 @@
+{
+  "merchantDetails": {
+    "dbaName": "Test Merchant",
+    "merchantName": "Test Merchant",
+    "iban": "PK61ABPA0010000019474073",
+    "country": "PK",
+    "merchantCategoryCode": "5812",
+    "merchantIdAlias": "merchant-${STAN}",
+    "postalAddress": {
+      "townName": "Karachi",
+      "subDept": "QAT",
+      "addressLine": "Test Address"
+    },
+    "contactDetails": {
+      "phoneNo": "9221345678901",
+      "mobileNo": "9230012345678",
+      "email": "qa@example.com",
+      "dept": "QA",
+      "website": "example.com",
+      "merchantChannelId": "WEB"
+    },
+    "geoLocation": {
+      "lat": "24.8607",
+      "long": "67.0011"
+    }
+  },
+  "payerDetails": {
+    "additionalRequiredDetails": "AM",
+    "identificationDetails": {
+      "loyaltyNo": "LOY${STAN}",
+      "customerLabel": "Test Customer"
+    }
+  },
+  "paymentDetails": {
+    "executionDateTime": "${LOCAL_DATETIME}",
+    "expiryDateTime": "${LOCAL_DATETIME}",
+    "purpose": "027",
+    "taxId": "1234567",
+    "referenceLabel": "REF${RRN}",
+    "billno": "BILL${STAN}",
+    "currency": "PKR",
+    "amount": {
+      "instructedAmount": 110,
+      "duePayableAmount": 110,
+      "adjustmentAmount": 0,
+      "delayPenaltyAmount": 0,
+      "cdtDbtIndicator": "CRDT",
+      "adjustmentReason": "NA",
+      "amountModificationAllowed": false,
+      "earlyPaymentAllowed": false,
+      "isAmountModificationAllowed": false,
+      "isEarlyPaymentAllowed": false
+    }
+  },
+  "info": {
+    "rrn": "${RRN}",
+    "stan": "${STAN}"
+  }
+}

@@ -167,7 +167,6 @@ def _resolve_service(
         ("acq", "acquiring"),
         ("acquiring", "acquiring"),
         ("mcas", "merchant_cas"),
-        ("merchant", "merchant_cas"),
         ("merchant_cas", "merchant_cas"),
     ]:
         if token in request_file:

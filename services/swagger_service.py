@@ -77,6 +77,8 @@ def import_openapi_spec(spec: dict[str, Any], service_id: str) -> SwaggerImportS
                 "method": method.upper(),
                 "headers": {"Content-Type": "application/json"},
             }
+            if not _looks_like_auth_api(api_name, path):
+                service_config.setdefault("token_routing", {}).setdefault(api_name, "default")
             template_file = requests_dir / f"{api_name}.json"
             if not template_file.exists():
                 template_file.write_text(
@@ -121,7 +123,7 @@ def _sample_body(spec: dict[str, Any], operation: dict[str, Any]) -> dict[str, A
     schema = media.get("schema", {}) if isinstance(media, dict) else {}
     example = _extract_media_example(media)
     if example not in ({}, [], None):
-        return example
+        return _enrich_sample_defaults(example)
     if not schema:
         for parameter in operation.get("parameters", []) or []:
             if isinstance(parameter, dict) and parameter.get("in") == "body":
@@ -129,7 +131,7 @@ def _sample_body(spec: dict[str, Any], operation: dict[str, Any]) -> dict[str, A
                 if "example" in parameter:
                     return parameter["example"]
                 break
-    return _sample_from_schema(spec, schema)
+    return _enrich_sample_defaults(_sample_from_schema(spec, schema))
 
 
 def _extract_media_example(media: dict[str, Any]) -> Any:
@@ -198,10 +200,57 @@ def _string_placeholder(schema: dict[str, Any]) -> str:
     if fmt == "date":
         return "${DATE}"
     if fmt in {"date-time", "datetime"}:
-        return "${DATETIME}"
+        return "${LOCAL_DATETIME}"
     if fmt == "uuid":
         return "${RTP_ID_UNIQUE}"
     return ""
+
+
+def _enrich_sample_defaults(payload: Any, parent_key: str = "") -> Any:
+    """Replace empty Swagger placeholders with safe, reusable test defaults."""
+    if isinstance(payload, dict):
+        return {key: _enrich_sample_defaults(value, key) for key, value in payload.items()}
+    if isinstance(payload, list):
+        return [_enrich_sample_defaults(item, parent_key) for item in payload]
+    if payload not in ("", 0):
+        return payload
+
+    key = parent_key.lower()
+    if "datetime" in key or key.endswith("dateTime".lower()):
+        return "${LOCAL_DATETIME}"
+    if key.endswith("date") or "relateddate" in key:
+        return "${DATE}"
+    if key == "rrn":
+        return "${RRN}"
+    if key == "stan":
+        return "${STAN}"
+    if key == "currency":
+        return "PKR"
+    if key == "country":
+        return "PK"
+    if key in {"iban", "sender_iban"}:
+        return "PK14MCIB0481000001240001"
+    if key == "receiver_iban":
+        return "PK61ABPA0010000019474073"
+    if key == "memberid":
+        return "MCIB01"
+    if "merchantname" in key or key == "dbaname":
+        return "Test Merchant"
+    if "payername" in key or "sendername" in key:
+        return "MOHAMMAD FAYYAZ"
+    if "payeename" in key or "receivername" in key:
+        return "Imran"
+    if "referenceid" in key or key.endswith("messageid"):
+        return "REF${RRN}"
+    if "reason" in key:
+        return "DUPLICATE"
+    if key in {"mcc", "merchantcategorycode"}:
+        return "5812"
+    if "purpose" in key:
+        return "027"
+    if "amount" in key and payload == 0:
+        return 110
+    return payload
 
 
 def _append_testcase_row(service_id: str, api_name: str, request_file: str) -> None:
@@ -248,7 +297,7 @@ def _append_testcase_row(service_id: str, api_name: str, request_file: str) -> N
         {
             "TC_ID": f"TC_SWAGGER_{sheet.max_row}",
             "Description": f"Generated smoke testcase for {api_name}",
-            "Bank": "bank1",
+            "Bank": "mib" if service_id == "acquiring" else "bank1",
             "API_Name": api_name,
             "Request_File": request_file,
             "Expected_Result": "success",

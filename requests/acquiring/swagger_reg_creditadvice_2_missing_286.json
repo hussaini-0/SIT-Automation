@@ -1,0 +1,12 @@
+{
+  "info": {
+    "rrn": "",
+    "stan": ""
+  },
+  "paymentInfo": {
+    "messageId": "",
+    "endToEndId": "",
+    "instructionId": "",
+    "transactionId": ""
+  }
+}

@@ -1,5 +1,3 @@
 {
-  "username": "dib",
-  "password": "dib",
-  "channel": "invalid-channel"
+    "grant_type":  "client_credentials "
 }

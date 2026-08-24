@@ -1,0 +1,17 @@
+{
+  "rrn": "${RRN}",
+  "stan": "${STAN}",
+  "sender_iban": "PK14MCIB0481000001240001",
+  "sender_idtype": "CNIC",
+  "sender_idvalue": "4240173165763",
+  "sender_name": "MOHAMMAD FAYYAZ",
+  "receiver_iban": "PK61ABPA0010000019474073",
+  "receiver_name": "Imran",
+  "amount": "10.999",
+  "fee": 0,
+  "receiver_participant_code": "ABPAPKKA",
+  "transaction_date": "${DATE}",
+  "transaction_time": "${TIME}",
+  "narration": "Acquiring regression 011",
+  "payment_purpose": "027"
+}

@@ -38,14 +38,14 @@
     },
     {
       "type": "EMAIL",
-      "value": "faizulamin@example.com",
+      "value": "faizulamin-${STAN}@example.com",
       "status": "active",
       "startDate": "2026-06-08",
       "expirationDate": "2030-06-08",
       "accounts": [
         {
           "id": {
-            "iban": "${IBAN_2}"
+            "iban": "${UNIQUE_IBAN_TC122_EMAIL}"
           },
           "currency": "PKR",
           "isDefault": true,
