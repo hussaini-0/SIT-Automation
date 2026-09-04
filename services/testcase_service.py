@@ -8,7 +8,7 @@ from typing import Any
 
 from openpyxl import load_workbook
 
-from services.config_service import ROOT_DIR, get_services_config
+from services.config_service import ROOT_DIR, get_banks_config, get_services_config
 from testcase_models import ServiceTestCase
 
 
@@ -48,9 +48,8 @@ def _module_for_api(api_name: str, endpoint: str) -> str:
     return api_name.split("_")[0].replace("-", " ").title() or "General"
 
 
-def load_testcase_inventory() -> list[TestcaseRecord]:
-    services = get_services_config()
-    testcase_sources = [
+def _shared_testcase_sources(services: dict[str, Any]) -> list[dict[str, Any]]:
+    testcase_sources: list[dict[str, Any]] = [
         {"service": "cas", "file": ROOT_DIR / "testcases" / "sit_testcases.xlsx", "sheet": "SIT"},
         {"service": "acquiring", "file": ROOT_DIR / "testcases" / "sit_testcases_acquiring.xlsx", "sheet": "ACQUIRING"},
         {
@@ -66,6 +65,54 @@ def load_testcase_inventory() -> list[TestcaseRecord]:
             testcase_sources.append(
                 {"service": service_id, "file": workbook_path, "sheet": service_id.upper()}
             )
+    return testcase_sources
+
+
+def _bank_specific_testcase_sources(bank_names: list[str], services: dict[str, Any]) -> list[dict[str, Any]]:
+    sources: list[dict[str, Any]] = []
+    for bank_name in bank_names:
+        workbook_path = ROOT_DIR / "testcases" / f"sit_testcases_{bank_name.lower()}.xlsx"
+        if not workbook_path.exists():
+            continue
+        for source in _shared_testcase_sources(services):
+            sources.append(
+                {
+                    "service": source["service"],
+                    "file": workbook_path,
+                    "sheet": source["sheet"],
+                    "bank": bank_name,
+                    "strict_sheet": True,
+                }
+            )
+    return sources
+
+
+def _normalized_bank_names(banks: list[str] | None) -> list[str]:
+    configured_banks = get_banks_config()
+    configured_by_lower = {str(key).lower(): str(key) for key in configured_banks}
+    normalized: list[str] = []
+    for bank in banks or []:
+        bank_key = str(bank or "").strip()
+        if not bank_key:
+            continue
+        normalized.append(configured_by_lower.get(bank_key.lower(), bank_key))
+    return normalized
+
+
+def load_testcase_inventory(*, banks: list[str] | None = None) -> list[TestcaseRecord]:
+    services = get_services_config()
+    requested_banks = _normalized_bank_names(banks)
+    testcase_sources = (
+        _bank_specific_testcase_sources(requested_banks, services)
+        if requested_banks
+        else _shared_testcase_sources(services)
+    )
+    if requested_banks and not testcase_sources:
+        testcase_sources = [
+            {**source, "bank": bank_name}
+            for bank_name in requested_banks
+            for source in _shared_testcase_sources(services)
+        ]
     records: list[TestcaseRecord] = []
 
     for source in testcase_sources:
@@ -75,7 +122,13 @@ def load_testcase_inventory() -> list[TestcaseRecord]:
             continue
 
         workbook = load_workbook(source_file, data_only=True)
-        sheet = workbook[str(source["sheet"])] if str(source["sheet"]) in workbook.sheetnames else workbook.active
+        sheet_name = str(source["sheet"])
+        if sheet_name in workbook.sheetnames:
+            sheet = workbook[sheet_name]
+        elif source.get("strict_sheet"):
+            continue
+        else:
+            sheet = workbook.active
         headers = [str(cell.value).strip() if cell.value else "" for cell in sheet[1]]
         header_index = {header: idx for idx, header in enumerate(headers)}
 
@@ -100,7 +153,7 @@ def load_testcase_inventory() -> list[TestcaseRecord]:
                     expected_result=_cell(row, header_index, "Expected_Result"),
                     validation_type=_cell(row, header_index, "Validation_Type", "response"),
                     execute=_cell(row, header_index, "Execute (Y/N)", "N").upper(),
-                    bank=_cell(row, header_index, "Bank"),
+                    bank=str(source.get("bank") or _cell(row, header_index, "Bank")),
                     flow_config=flow_config,
                     validation_rules=_cell(row, header_index, "Validation_Rules"),
                     test_type=_cell(row, header_index, "Test_Type", "positive").lower(),
@@ -117,11 +170,13 @@ def filter_testcase_inventory(
     services: list[str] | None = None,
     apis: list[str] | None = None,
     testcase_ids: list[str] | None = None,
+    banks: list[str] | None = None,
     include_disabled: bool = False,
 ) -> list[TestcaseRecord]:
     service_filter = {service.strip().lower() for service in services or [] if service and service.strip()}
     api_filter = {api.strip() for api in apis or [] if api and api.strip()}
     testcase_filter = {tc_id.strip() for tc_id in testcase_ids or [] if tc_id and tc_id.strip()}
+    bank_filter = {bank.strip().lower() for bank in banks or [] if bank and bank.strip()}
 
     selected = records
     if service_filter:
@@ -132,6 +187,8 @@ def filter_testcase_inventory(
         selected = [record for record in selected if record.api_name in api_filter]
     if testcase_filter:
         selected = [record for record in selected if record.tc_id in testcase_filter]
+    if bank_filter:
+        selected = [record for record in selected if record.bank.strip().lower() in bank_filter]
     return selected
 
 
@@ -140,13 +197,15 @@ def select_testcase_inventory(
     services: list[str] | None = None,
     apis: list[str] | None = None,
     testcase_ids: list[str] | None = None,
+    banks: list[str] | None = None,
     include_disabled: bool = False,
 ) -> list[TestcaseRecord]:
     return filter_testcase_inventory(
-        load_testcase_inventory(),
+        load_testcase_inventory(banks=banks),
         services=services,
         apis=apis,
         testcase_ids=testcase_ids,
+        banks=banks,
         include_disabled=include_disabled,
     )
 

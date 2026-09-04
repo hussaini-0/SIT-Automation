@@ -97,10 +97,12 @@ def cancel_execution(job_id: str) -> bool:
 
 
 def _select_records(options: ExecutionOptions) -> list[TestcaseRecord]:
+    bank_override = str(options.bank or "").strip()
     records = select_testcase_inventory(
         services=options.services,
         apis=options.apis,
         testcase_ids=options.testcase_ids,
+        banks=[bank_override] if bank_override else None,
         include_disabled=options.include_disabled,
     )
     testcase_key_filter = {
@@ -116,7 +118,6 @@ def _select_records(options: ExecutionOptions) -> list[TestcaseRecord]:
         ]
     if options.exclude_dqrc:
         records = [record for record in records if record.api_name != "merchant_payment_direct_dqrc"]
-    bank_override = str(options.bank or "").strip()
     if bank_override:
         records = [replace(record, bank=bank_override) for record in records]
     return records
@@ -155,7 +156,7 @@ def _run_job(job_id: str, options: ExecutionOptions) -> None:
             selected_banks_by_service.setdefault(record.service, set()).add(record.bank)
         auth_records = [
             record
-            for record in load_testcase_inventory()
+            for record in load_testcase_inventory(banks=[options.bank] if str(options.bank or "").strip() else None)
             if record.service in auth_names_by_service and record.api_name in auth_names_by_service[record.service]
             and record.execute == "Y"
             and record.test_type == "positive"

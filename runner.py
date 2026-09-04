@@ -207,13 +207,15 @@ class SITRunner:
         services: Optional[List[str]] = None,
         apis: Optional[List[str]] = None,
         testcase_ids: Optional[List[str]] = None,
+        banks: Optional[List[str]] = None,
         include_disabled: bool = False,
     ) -> List[ServiceTestCase]:
-        """Load testcases from the shared inventory with optional CLI filters."""
+        """Load testcases from the inventory with optional CLI filters."""
         records = select_testcase_inventory(
             services=services,
             apis=apis,
             testcase_ids=testcase_ids,
+            banks=banks,
             include_disabled=include_disabled,
         )
         selected_services = {service.strip().lower() for service in services or [] if service and service.strip()}
@@ -257,6 +259,7 @@ class SITRunner:
         services: Optional[List[str]] = None,
         apis: Optional[List[str]] = None,
         testcase_ids: Optional[List[str]] = None,
+        banks: Optional[List[str]] = None,
         include_disabled: bool = False,
         max_workers: Optional[int] = None,
     ) -> None:
@@ -268,6 +271,7 @@ class SITRunner:
             services=services,
             apis=apis,
             testcase_ids=testcase_ids,
+            banks=banks,
             include_disabled=include_disabled,
         )
 
@@ -741,6 +745,18 @@ class SITRunner:
             return {}
         return {str(key).upper(): str(value) for key, value in bank_test_data.items() if value is not None}
 
+    def _bank_prefixed_global_tokens(self, bank_name: str) -> Dict[str, str]:
+        """Let test_data.yaml keep bank-specific values like NBP_ACQUIRING_KEYCLOAK_TOKEN_URL."""
+        bank_key = str(bank_name or "").strip().upper()
+        if not bank_key:
+            return {}
+        prefix = f"{bank_key}_"
+        return {
+            key.removeprefix(prefix): value
+            for key, value in self.test_data_tokens.items()
+            if key.startswith(prefix)
+        }
+
     def _render_payload(
         self,
         request_file_name: str,
@@ -756,9 +772,16 @@ class SITRunner:
         template = TemplateEngine.load_json_template(request_file_path)
         template_tokens = TemplateEngine.extract_placeholders(template)
         bank_tokens = self._bank_test_data_tokens(bank_name)
-        overridden_tokens = set(self.test_data_tokens) | set(bank_tokens) | {str(key).upper() for key in extra_tokens}
+        bank_prefixed_tokens = self._bank_prefixed_global_tokens(bank_name)
+        overridden_tokens = (
+            set(self.test_data_tokens)
+            | set(bank_prefixed_tokens)
+            | set(bank_tokens)
+            | {str(key).upper() for key in extra_tokens}
+        )
         values = DataGenerator.default_tokens(template_tokens - overridden_tokens)
         values.update(self.test_data_tokens)   # user-defined variables from test_data.yaml
+        values.update(bank_prefixed_tokens)     # bank-prefixed globals override shared values
         values.update(bank_tokens)             # selected bank overrides shared values
         values.update(extra_tokens)            # call-site overrides take highest priority
         rendered = TemplateEngine.render_template(template, values)
@@ -770,6 +793,7 @@ class SITRunner:
             return str(value)
         bank_tokens = self._bank_test_data_tokens(bank_name)
         values = dict(self.test_data_tokens)
+        values.update(self._bank_prefixed_global_tokens(bank_name))
         values.update(bank_tokens)
         return TemplateEngine.render_template(str(value), values)
 
@@ -2956,6 +2980,13 @@ def parse_args() -> argparse.Namespace:
         help="Run only the given testcase ID. Repeat to include multiple testcases.",
     )
     parser.add_argument(
+        "--bank",
+        dest="banks",
+        action="append",
+        default=[],
+        help="Run only the given bank. Repeat to include multiple banks.",
+    )
+    parser.add_argument(
         "--include-disabled",
         action="store_true",
         help="Include Excel rows marked Execute=N in the selected run.",
@@ -3017,6 +3048,7 @@ if __name__ == "__main__":
             services=args.services,
             apis=args.apis,
             testcase_ids=args.testcase_ids,
+            banks=args.banks,
             include_disabled=bool(args.include_disabled),
             max_workers=args.workers,
         )
