@@ -1,18 +1,21 @@
 from __future__ import annotations
 
+import json
+
 import dashboard.bootstrap  # noqa: F401
 import streamlit as st
 from dataclasses import replace
 
 from dashboard.components.execution_progress import render_execution_progress
 from dashboard.components.sidebar import render_sidebar
-from services.config_service import get_banks_config, get_services_config, load_settings
+from services.config_service import ROOT_DIR, get_banks_config, get_services_config, load_settings
 from services.dqrc_service import extract_dqrc_details, load_runtime_rtp_id, save_dqrc_runtime_details
+from services.sqrc_service import load_sqrc_profiles, load_sqrc_runtime_details
 from services.execution_service import ExecutionOptions, cancel_execution, get_execution_state, start_execution
 from services.health_service import check_records_reachability
 from services.report_service import latest_result
 from services.testcase_validation_service import validate_records_for_run
-from services.testcase_service import load_testcase_inventory
+from services.testcase_service import load_testcase_inventory, scope_run_cases
 
 
 st.set_page_config(page_title="Execute - QA Control Center", page_icon="QA", layout="wide")
@@ -50,6 +53,20 @@ selected_bank = st.selectbox(
     help="Choose a bank profile to run the selected testcases against. Leave as Excel values to use each row's Bank column.",
 )
 bank_override = "" if selected_bank == "Use Excel Bank values" else selected_bank
+receiving_bank_options = ["Use default receiver values", *sorted(banks)]
+selected_receiving_bank = st.selectbox(
+    "Receiving Bank",
+    receiving_bank_options,
+    format_func=lambda bank: (
+        bank
+        if bank == "Use default receiver values"
+        else f"{bank} - {banks.get(bank, {}).get('display_name', bank) if isinstance(banks.get(bank), dict) else bank}"
+    ),
+    help="For P2P/payment payloads, choose which bank's IBAN/BIC should be used as the receiver.",
+)
+receiving_bank_override = "" if selected_receiving_bank == "Use default receiver values" else selected_receiving_bank
+if bank_override:
+    records = load_testcase_inventory(banks=[bank_override])
 missing_service_urls: list[str] = []
 if bank_override:
     bank_config = banks.get(bank_override, {})
@@ -93,6 +110,31 @@ selected_apis = st.multiselect("APIs", api_options)
 if selected_apis:
     filtered_records = [record for record in filtered_records if record.api_name in selected_apis]
 
+rtp_selected = any("rtp" in api_name.lower() for api_name in selected_apis)
+if rtp_selected and st.session_state.get("skip_rtp", False):
+    # Selecting RTP APIs is an explicit request to run them, even for NBP where
+    # the default is to skip RTP in a general regression run.
+    st.session_state["skip_rtp"] = False
+skip_rtp = st.toggle(
+    "Skip RTP APIs",
+    value=bank_override.lower() == "nbp" and not rtp_selected,
+    key="skip_rtp",
+    help="Leave this off when running RTPNow, RTPLater, or RTP payment cases.",
+)
+if rtp_selected and skip_rtp:
+    st.warning("RTP APIs are selected but Skip RTP APIs is enabled, so no RTP testcases will appear.")
+register_customer_limit = st.number_input(
+    "Register Customer cases",
+    min_value=0,
+    value=2 if bank_override.lower() == "nbp" else 0,
+    help="0 means all cases. 2 selects baseline positive TC243 and missing-UID negative TC249 when available.",
+)
+filtered_records = scope_run_cases(
+    filtered_records,
+    skip_rtp=skip_rtp,
+    register_customer_limit=int(register_customer_limit) or None,
+)
+
 exclude_dqrc = st.toggle(
     "Exclude DQRC cases",
     value=False,
@@ -123,6 +165,25 @@ else:
         dqrc_cols[1].caption(f"Current runtime RTP ID: `{existing_rtp_id}`")
     else:
         dqrc_cols[1].caption("No DQRC RTP ID loaded.")
+
+st.subheader("SQRC Runtime Data")
+sqrc_profiles = load_sqrc_profiles()
+sqrc_profile_options = ["Use active SQRC profile", *sorted(sqrc_profiles)]
+selected_sqrc_profile = st.selectbox(
+    "SQRC profile",
+    sqrc_profile_options,
+    help="SQRC testcases use the selected saved QR merchant data. This is independent of the Receiving Bank selector.",
+)
+sqrc_profile_name = "" if selected_sqrc_profile == "Use active SQRC profile" else selected_sqrc_profile
+active_sqrc = sqrc_profiles.get(sqrc_profile_name, load_sqrc_runtime_details())
+if active_sqrc:
+    sqrc_cols = st.columns(4)
+    sqrc_cols[0].metric("Merchant", active_sqrc.get("MERCHANT_ACCOUNT_TITLE", "-"))
+    sqrc_cols[1].metric("BIC", active_sqrc.get("MERCHANT_BIC", "-"))
+    sqrc_cols[2].metric("IBAN", active_sqrc.get("MERCHANT_IBAN", "-"))
+    sqrc_cols[3].metric("City", active_sqrc.get("MERCHANT_CITY", "-"))
+else:
+    st.caption("No saved SQRC profile found. Upload and save one from the SQRC page before running SQRC cases.")
 
 if type_filter:
     filtered_records = [record for record in filtered_records if record.test_type in type_filter]
@@ -195,6 +256,43 @@ st.dataframe(
 if len(filtered_records) > 500:
     st.caption(f"Showing first 500 rows out of {len(filtered_records)} matches.")
 
+if filtered_records:
+    st.subheader("Request Body Editor")
+    editor_options = {
+        f"{record.service} | {record.api_name} | {record.tc_id}": record
+        for record in filtered_records[:500]
+    }
+    editor_label = st.selectbox("Testcase request body", list(editor_options))
+    editor_record = editor_options[editor_label]
+    request_path = ROOT_DIR / "requests" / editor_record.service / editor_record.request_file
+    if not request_path.exists():
+        request_path = ROOT_DIR / "requests" / editor_record.request_file
+
+    if request_path.exists():
+        request_text = request_path.read_text(encoding="utf-8")
+        editor_key = f"request_body_{editor_record.service}_{editor_record.tc_id}"
+        edited_request = st.text_area(
+            f"Request body template: {request_path.relative_to(ROOT_DIR)}",
+            value=request_text,
+            height=420,
+            key=editor_key,
+            help="Placeholders such as ${SENDER_IBAN} are resolved at execution time.",
+        )
+        if st.button("Save Request Body", key=f"save_{editor_key}"):
+            try:
+                parsed_request = json.loads(edited_request)
+                request_path.write_text(
+                    json.dumps(parsed_request, indent=2, ensure_ascii=False) + "\n",
+                    encoding="utf-8",
+                )
+                st.success(f"Saved request body for {editor_record.tc_id}.")
+            except json.JSONDecodeError as exc:
+                st.error(f"Request body is not valid JSON: {exc}")
+            except OSError as exc:
+                st.error(f"Request body could not be saved: {exc}")
+    else:
+        st.warning(f"Request file not found: {editor_record.request_file}")
+
 with st.form("execution_controls"):
     st.subheader("Execution Controls")
     cols = st.columns(6)
@@ -234,7 +332,10 @@ if submitted:
         st.warning("Upload DQRC first. DQRC cases need a fresh RTP ID before execution.")
     else:
         if pre_run_checks:
-            validation_issues = validate_records_for_run(runnable_records)
+            validation_issues = validate_records_for_run(
+                runnable_records,
+                receiving_bank=receiving_bank_override,
+            )
             blocking_issues = [issue for issue in validation_issues if issue.severity == "error"]
             if blocking_issues:
                 st.error("Pre-run validation failed. Fix these before starting execution.")
@@ -282,6 +383,7 @@ if submitted:
                 apis=selected_apis,
                 testcase_keys=execution_testcase_keys,
                 bank=bank_override,
+                receiving_bank=receiving_bank_override,
                 workers=int(workers),
                 timeout=int(timeout),
                 retries=int(retries),
@@ -290,6 +392,9 @@ if submitted:
                 verbose_logging=bool(verbose),
                 include_disabled=bool(include_disabled),
                 exclude_dqrc=bool(exclude_dqrc),
+                skip_rtp=bool(skip_rtp),
+                register_customer_limit=int(register_customer_limit) or None,
+                sqrc_profile=sqrc_profile_name,
             )
         )
         st.session_state["execution_job_id"] = job_id

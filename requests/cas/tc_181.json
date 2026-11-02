@@ -1,4 +1,4 @@
 {
-  "password": "dib",
+  "password": "${AUTH_PASSWORD}",
   "channel": "ib"
 }

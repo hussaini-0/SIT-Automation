@@ -15,6 +15,7 @@ def render_sidebar() -> None:
         st.page_link("pages/Execute.py", label="Execute")
         st.page_link("pages/Stress.py", label="Stress")
         st.page_link("pages/Swagger.py", label="Swagger Import")
+        st.page_link("pages/SQRC.py", label="SQRC Data")
         st.page_link("pages/Reports.py", label="Reports")
         st.page_link("pages/Logs.py", label="Logs")
         st.page_link("pages/Settings.py", label="Settings")

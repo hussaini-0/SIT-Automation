@@ -1,0 +1,32 @@
+{
+  "additionalInfo": {
+    "currency": ""
+  },
+  "amountInfo": {
+    "amount": 0,
+    "tip": 0,
+    "totalAmount": ""
+  },
+  "info": {
+    "rrn": "${RRN}",
+    "stan": "${STAN}"
+  },
+  "merchantInfo": {
+    "accountTitle": "",
+    "bic": "",
+    "categoryCode": "",
+    "dba": "",
+    "iban": ""
+  },
+  "paymentInfo": {
+    "dateTime": ""
+  },
+  "senderIdentification": {
+    "idType": "",
+    "idValue": ""
+  },
+  "senderInfo": {
+    "accountTitle": "",
+    "iban": ""
+  }
+}

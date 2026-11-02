@@ -1,0 +1,14 @@
+{
+  "info": {
+    "rrn": "${RRN}",
+    "stan": "${STAN}"
+  },
+  "paymentInfo": {
+    "datetime": "",
+    "orginalRRN": "",
+    "orginalStan": ""
+  },
+  "senderInfo": {
+    "iban": ""
+  }
+}

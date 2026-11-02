@@ -20,6 +20,7 @@ testcases/~$*.xlsx
 
 # Local runtime and machine-specific config
 config/runtime_test_data.yaml
+config/sqrc_profiles.yaml
 config/dashboard_settings.yaml
 config/servers.yaml
 config/test_data.yaml

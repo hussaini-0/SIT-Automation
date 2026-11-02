@@ -1,0 +1,10 @@
+{
+  "alias": {
+    "aliasType": "",
+    "aliasValue": ""
+  },
+  "info": {
+    "rrn": "${RRN}",
+    "stan": "${STAN}"
+  }
+}

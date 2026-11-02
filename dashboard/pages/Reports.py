@@ -15,10 +15,22 @@ st.set_page_config(page_title="Reports - QA Control Center", page_icon="QA", lay
 render_sidebar()
 st.title("Reports")
 
-artifacts = list_reports() + list_results()
+reports = list_reports()
+artifacts = reports + list_results()
 if not artifacts:
     st.info("No reports or result files found.")
     st.stop()
+
+if reports:
+    latest_report = reports[0]
+    latest_result_path = latest_report.path.parent.parent / "results" / f"results_{latest_report.run_tag}.json"
+    latest_summary = read_result(latest_result_path).get("summary", {})
+    st.success(
+        f"Latest report: {latest_report.path.name} | "
+        f"Completed {latest_report.modified_at:%Y-%m-%d %I:%M:%S %p} | "
+        f"Passed {latest_summary.get('passed', '-')} / {latest_summary.get('total', '-')}"
+    )
+    st.caption("The newest report is selected below. `reports/latest.html` always opens the latest completed report.")
 
 selected_name = st.selectbox(
     "Artifact",
@@ -26,6 +38,8 @@ selected_name = st.selectbox(
     format_func=lambda item: Path(item).name,
 )
 selected_path = Path(selected_name)
+if reports and selected_path != reports[0].path:
+    st.caption("Viewing an older artifact. The latest report is shown above.")
 artifact_cols = st.columns([1, 1, 5])
 with selected_path.open("rb") as handle:
     artifact_cols[0].download_button("Download", handle, file_name=selected_path.name)

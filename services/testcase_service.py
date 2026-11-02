@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from openpyxl import load_workbook
 
@@ -29,6 +29,39 @@ class TestcaseRecord:
     validation_rules: str = ""
     test_type: str = "positive"
     trx_type: str = "non-financial"
+
+
+_CaseT = TypeVar("_CaseT", TestcaseRecord, ServiceTestCase)
+
+
+def scope_run_cases(
+    cases: list[_CaseT],
+    *,
+    skip_rtp: bool = False,
+    register_customer_limit: int | None = None,
+) -> list[_CaseT]:
+    """Apply optional run-only API limits without changing the workbook inventory."""
+    selected = [case for case in cases if not (skip_rtp and "rtp" in case.api_name.lower())]
+    if register_customer_limit is None:
+        return selected
+
+    limit = max(0, register_customer_limit)
+    groups: dict[tuple[str, str], list[tuple[int, _CaseT]]] = {}
+    for index, case in enumerate(selected):
+        if case.service == "cas" and case.api_name.lower() == "registercustomer":
+            groups.setdefault((case.service, case.bank.lower()), []).append((index, case))
+
+    excluded_indices: set[int] = set()
+    for group in groups.values():
+        preferred = [
+            item for tc_id in ("TC243", "TC249")
+            for item in group if item[1].tc_id.upper() == tc_id
+        ]
+        ordered = preferred + [item for item in group if item not in preferred]
+        kept_indices = {index for index, _ in ordered[:limit]}
+        excluded_indices.update(index for index, _ in group if index not in kept_indices)
+
+    return [case for index, case in enumerate(selected) if index not in excluded_indices]
 
 
 def _cell(row: tuple[Any, ...], headers: dict[str, int], name: str, default: str = "") -> str:

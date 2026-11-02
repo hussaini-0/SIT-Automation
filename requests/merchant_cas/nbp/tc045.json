@@ -1,0 +1,39 @@
+{
+  "info": {
+    "rrn": "${RRN}",
+    "stan": "${STAN}"
+  },
+  "senderIdentification": {
+    "idType": "CNIC",
+    "idValue": "ABC424015566"
+  },
+  "senderInfo": {
+    "iban": "${SENDER_IBAN}",
+    "accountTitle": "Faiz Ul Amin Khan"
+  },
+  "paymentInfo": {
+    "longitude": "",
+    "latitude": "",
+    "dateTime": "${DATETIME}",
+    "paymentPurpose": "${MERCHANT_ALIAS_PAYMENT_PURPOSE}"
+  },
+  "amountInfo": {
+    "amount": 5.0,
+    "fee": 0.0
+  },
+  "merchantInfo": {
+    "accountTitle": "${MERCHANT_ACCOUNT_TITLE}",
+    "dba": "${MERCHANT_DBA}",
+    "categoryCode": "${MERCHANT_CATEGORY_CODE}",
+    "bic": "${MERCHANT_BIC}",
+    "iban": "${MERCHANT_IBAN}",
+    "merchantIdAlias": "${MERCHANT_ID_ALIAS}"
+  },
+  "reserveFields": {
+    "r1": "",
+    "r2": "",
+    "r3": "",
+    "r4": "",
+    "r5": ""
+  }
+}

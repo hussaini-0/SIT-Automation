@@ -1,0 +1,58 @@
+{
+  "merchantDetails": {
+    "dbaName": "UBAID SHOP",
+    "merchantName": "UBAID SHOP",
+    "iban": "PK28FAYS4894896548165418",
+    "country": "PK",
+    "merchantCategoryCode": "5271",
+    "merchantIdAlias": "",
+    "postalAddress": {
+      "townName": "KARACHI",
+      "subDept": "some terminal label",
+      "addressLine": "xyz street"
+    },
+    "contactDetails": {
+      "phoneNo": "+92-3082003363",
+      "mobileNo": "+92-3082003363",
+      "email": "zyz@gmail.com",
+      "dept": "new branch",
+      "website": "mywebsite.com",
+      "merchantChannelId": "400"
+    },
+    "geoLocation": {
+      "lat": "24.875061",
+      "long": "67.038332"
+    }
+  },
+  "payerDetails": {
+    "memberId": "NBPBPKKA",
+    "payerName": "MOHAMMAD FAYYAZ",
+    "iban": "PK69NBPA0071004245965806",
+    "additionalRequiredDetails": "AME",
+    "identificationDetails": {
+      "loyaltyNo": "some num",
+      "customerLabel": "some label"
+    }
+  },
+  "paymentDetails": {
+    "executionDateTime": "${LOCAL_DATETIME}",
+    "expiryDateTime": "${RTP_EXPIRY_DATETIME}",
+    "purpose": "room reservation",
+    "taxId": "SOME TAX ID",
+    "billno": "SOME BILL NUMB",
+    "currency": "PKR",
+    "amount": {
+      "instructedAmount": 1.0,
+      "delayPenaltyAmount": 5.0,
+      "amountModificationAllowed": false,
+      "earlyPaymentAllowed": true,
+      "isAmountModificationAllowed": false,
+      "isEarlyPaymentAllowed": true
+    },
+    "RTPId": ""
+  },
+  "info": {
+    "rrn": "${RRN}",
+    "stan": "${STAN}"
+  }
+}

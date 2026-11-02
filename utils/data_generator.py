@@ -3,7 +3,7 @@ import random
 import secrets
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Optional, Set
 
@@ -130,6 +130,7 @@ class DataGenerator:
                 "TIME",
                 "DATETIME",
                 "LOCAL_DATETIME",
+                "RTP_EXPIRY_DATETIME",
                 "RTP_ID_UNIQUE",
                 "DUPLICATE_RRN",
             }
@@ -151,6 +152,10 @@ class DataGenerator:
             values["DATETIME"] = cls.current_datetime()
         if "LOCAL_DATETIME" in tokens:
             values["LOCAL_DATETIME"] = cls.current_datetime("%Y-%m-%dT%H:%M:%S")
+        if "RTP_EXPIRY_DATETIME" in tokens:
+            values["RTP_EXPIRY_DATETIME"] = (
+                datetime.now() + timedelta(minutes=30)
+            ).strftime("%Y-%m-%dT%H:%M:%S")
         if "RTP_ID_UNIQUE" in tokens:
             values["RTP_ID_UNIQUE"] = cls.generate_rtp_id()
         for token in sorted(tokens):

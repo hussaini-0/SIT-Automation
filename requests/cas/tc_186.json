@@ -1,6 +1,6 @@
 {
-  "username": "dib",
-  "password": "dib",
+  "username": "${AUTH_USERNAME}",
+  "password": "${AUTH_PASSWORD}",
   "channel": "ib",
   "_note": "Valid payload - timeout is simulated at network/server layer to trigger HTTP 504"
 }

@@ -129,7 +129,6 @@ scenarios:
     apis:
       - registerCustomer
       - onestep
-      - registercaa
     positive_only: true
     allow_stateful_apis: true
     workers: 1

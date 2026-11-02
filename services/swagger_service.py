@@ -229,11 +229,11 @@ def _enrich_sample_defaults(payload: Any, parent_key: str = "") -> Any:
     if key == "country":
         return "PK"
     if key in {"iban", "sender_iban"}:
-        return "PK14MCIB0481000001240001"
+        return "${SENDER_IBAN}"
     if key == "receiver_iban":
         return "PK61ABPA0010000019474073"
     if key == "memberid":
-        return "MCIB01"
+        return "${BIC_CODE}"
     if "merchantname" in key or key == "dbaname":
         return "Test Merchant"
     if "payername" in key or "sendername" in key:

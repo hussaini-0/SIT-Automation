@@ -1,0 +1,56 @@
+{
+  "info": {
+    "rrn": "${RRN}",
+    "stan": "${STAN}"
+  },
+  "senderIdentification": {
+    "idType": "CNIC",
+    "idValue": "4240155662731"
+  },
+  "senderInfo": {
+    "iban": "${SENDER_IBAN}",
+    "accountTitle": "Faiz Ul Amin Khan"
+  },
+  "paymentInfo": {
+    "dateTime": "${DATETIME}"
+  },
+  "amountInfo": {
+    "amount": 6.0,
+    "fee": 0.0
+  },
+  "merchantInfo": {
+    "accountTitle": "${MERCHANT_ACCOUNT_TITLE}",
+    "dba": "${MERCHANT_DBA}",
+    "categoryCode": "${MERCHANT_CATEGORY_CODE}",
+    "bic": "${MERCHANT_BIC}",
+    "iban": "${MERCHANT_IBAN}",
+    "merchantIdAlias": "${MERCHANT_ID_ALIAS}"
+  },
+  "additionalInfo": {
+    "currency": "${MERCHANT_CURRENCY}",
+    "country": "${MERCHANT_COUNTRY}",
+    "billNumber": "BILL-200",
+    "billDueDate": "",
+    "loyaltyNumber": "",
+    "storeLabel": "${MERCHANT_STORE_LABEL}",
+    "customerLabel": "QA-CUST-200",
+    "terminalID": "${MERCHANT_TERMINAL_ID}",
+    "paymentPurpose": "",
+    "merchantTaxId": "",
+    "merchantChannel": "",
+    "rtpId": "${RTP_ID}",
+    "ttc": "",
+    "customerMobile": "",
+    "customerEmail": "",
+    "customerAddress": "",
+    "referenceLabel": "REF-200",
+    "amountAfterDueDate": 0.0
+  },
+  "reserveFields": {
+    "r1": "",
+    "r2": "",
+    "r3": "",
+    "r4": "",
+    "r5": ""
+  }
+}

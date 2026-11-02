@@ -9,7 +9,7 @@
   "receiver_name": "Imran",
   "amount": 150.0,
   "fee": 0.0,
-  "receiver_participant_code": "ABPAPKKA",
+  "receiver_participant_code": "FAYSPKKA",
   "transaction_date": "${DATE}",
   "transaction_time": "${TIME}",
   "narration": "P2P",

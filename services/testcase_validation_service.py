@@ -26,9 +26,12 @@ class TestcaseValidationIssue:
     message: str
 
 
-def validate_records_for_run(records: list[TestcaseRecord]) -> list[TestcaseValidationIssue]:
+def validate_records_for_run(
+    records: list[TestcaseRecord],
+    receiving_bank: str = "",
+) -> list[TestcaseValidationIssue]:
     """Validate request files, API config, bank URLs, and unresolved placeholders."""
-    runner = SITRunner(ROOT_DIR)
+    runner = SITRunner(ROOT_DIR, receiving_bank=receiving_bank)
     issues: list[TestcaseValidationIssue] = []
 
     for record in records:

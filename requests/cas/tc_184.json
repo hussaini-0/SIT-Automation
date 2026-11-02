@@ -1,5 +1,5 @@
 {
-  "username": "dib",
-  "password": "dib",
+  "username": "${AUTH_USERNAME}",
+  "password": "${AUTH_PASSWORD}",
   "channel": "unregistered_channel"
 }

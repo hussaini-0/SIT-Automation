@@ -1,0 +1,8 @@
+{
+  "info": {
+    "rrn": "${RRN}",
+    "stan": "${STAN}"
+  },
+  "rtpId": "",
+  "rtpStatus": ""
+}

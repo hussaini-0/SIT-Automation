@@ -1,4 +1,4 @@
 {
-  "username": "dib",
+  "username": "${AUTH_USERNAME}",
   "channel": "ib"
 }

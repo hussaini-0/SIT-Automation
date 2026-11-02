@@ -2,14 +2,14 @@
   "merchantDetails": {
     "dbaName": "Test Merchant",
     "merchantName": "Test Merchant",
-    "iban": "PK61ABPA0010000019474073",
+    "iban": "${RECEIVER_IBAN}",
     "country": "PK",
     "mcc": "5812",
-    "memberId": "MCIB01"
+    "memberId": "${RECEIVER_PARTICIPANT_CODE}"
   },
   "payerDetails": {
     "payerName": "MOHAMMAD FAYYAZ",
-    "iban": "PK14MCIB0481000001240001"
+    "iban": "${SENDER_IBAN}"
   },
   "paymentDetails": {
     "amount": 110,

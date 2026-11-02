@@ -1,0 +1,28 @@
+{
+  "amountInfo": {
+    "amount": 0
+  },
+  "info": {
+    "rrn": "${RRN}",
+    "stan": "${STAN}"
+  },
+  "merchantInfo": {
+    "accountTitle": "",
+    "bic": "",
+    "categoryCode": "",
+    "dba": "",
+    "iban": ""
+  },
+  "paymentInfo": {
+    "dateTime": "",
+    "paymentPurpose": ""
+  },
+  "senderIdentification": {
+    "idType": "",
+    "idValue": ""
+  },
+  "senderInfo": {
+    "accountTitle": "",
+    "iban": ""
+  }
+}

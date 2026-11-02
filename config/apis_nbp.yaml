@@ -1,0 +1,197 @@
+services:
+  cas:
+    apis:
+      nbp_limitVerification:
+        endpoint: /api/v1/paysyslabs/limit/reset/{identificationValue}
+        method: PUT
+        headers:
+          Content-Type: application/json
+      nbp_paymentNonDirectPostingVersion4:
+        endpoint: /api/v4/paysyslabs/reservefields/payment
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_paymentDirectPostingVersion4:
+        endpoint: /api/v4/paysyslabs/reservefields/directposting
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_paymentNonDirectPostingVersion2:
+        endpoint: /api/v2/paysyslabs/ref/payment
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_paymentDirectPostingVersion2:
+        endpoint: /api/v2/paysyslabs/ref/directposting
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_titleFetchConventionalBulkRequest:
+        endpoint: /api/v1/paysyslabs/titlefetchbulk
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_paymentCopy:
+        endpoint: /api/v1/paysyslabs/paymentcopy
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_limitVerification_1:
+        endpoint: /api/v1/paysyslabs/limit/verify
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_limitVerification_2:
+        endpoint: /api/v1/paysyslabs/limit/custom-limit
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_syncCustomer:
+        endpoint: /api/v1/paysyslabs/customers/sync
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_getCustomerInfo:
+        endpoint: /api/v1/paysyslabs/customers/getcustomerinfo
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_creditInquiryVersion3:
+        endpoint: /api/v1/paysyslabs/creditinquiryv3
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_creditInquiryVersion2:
+        endpoint: /api/v1/paysyslabs/creditinquiryv2
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_creditInquiry:
+        endpoint: /api/v1/paysyslabs/creditinquiry
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_paymentCopy_1:
+        endpoint: /api/v1/paysyslabs/backoffice/paymentcopy
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_updateAliasStatus:
+        endpoint: /api/v1/paysyslabs/alias/updatestatus
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_updateAliasClosingDate:
+        endpoint: /api/v1/paysyslabs/alias/updateAliasValidity
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_registerAccount:
+        endpoint: /api/v1/paysyslabs/accounts/registeraacc
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_defaultAccountForAlias:
+        endpoint: /api/v1/paysyslabs/account/setdefault
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_linkAccountToAlias:
+        endpoint: /api/v1/paysyslabs/account/linkaccountalias
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_unlinkAccountFromAlias:
+        endpoint: /api/v1/paysyslabs/account/delinkaccountalias
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_updateCertificate:
+        endpoint: /public-key/update
+        method: GET
+        headers:
+          Content-Type: application/json
+      nbp_remainingLimit:
+        endpoint: /api/v1/paysyslabs/limit/remaining-limit
+        method: GET
+        headers:
+          Content-Type: application/json
+      nbp_getsBanklist:
+        endpoint: /api/v1/paysyslabs/banklist
+        method: GET
+        headers:
+          Content-Type: application/json
+      nbp_refreshCasBeans:
+        endpoint: /api/v1/paysyslabs/backoffice/refreshCasBeans
+        method: GET
+        headers:
+          Content-Type: application/json
+  merchant_cas:
+    apis:
+      # NBP SQRC payment uses the customer-initiated route, not the legacy
+      # /direct/SQRC/onus route.
+      merchant_payment_direct_sqrc:
+        endpoint: /api/v1/paysyslabs/merchant/payment/SQRC
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_paymentInquiry:
+        endpoint: /api/v1/paysyslabs/merchant/transactionInquiry
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_rtpAcceptance:
+        endpoint: /api/v1/paysyslabs/merchant/rtp/status
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_returnPayment:
+        endpoint: /api/v1/paysyslabs/merchant/returnpayment/onus
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_requestForReturn:
+        endpoint: /api/v1/paysyslabs/merchant/requestforreturn
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_payToAliasDirect:
+        endpoint: /api/v1/paysyslabs/merchant/payment/direct/alias
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_payToAliasDirect_1:
+        endpoint: /api/v1/paysyslabs/merchant/payment/direct/alias/onus
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_customerInitiatedDirectPayments_1:
+        endpoint: /api/v1/paysyslabs/merchant/payment/direct/SQRC/onus
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_merchantInitiatedDynamicQRCDirectPayments_1:
+        endpoint: /api/v1/paysyslabs/merchant/payment/direct/DQRC/onus
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_customerNonDirectPayments:
+        endpoint: /api/v1/paysyslabs/merchant/payment/SQRC/onus
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_merchantInitiatedPayments:
+        endpoint: /api/v1/paysyslabs/merchant/payment/DQRC/onus
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_merchantAliasInquiry:
+        endpoint: /api/v1/paysyslabs/merchant/aliasInquiry
+        method: POST
+        headers:
+          Content-Type: application/json
+      nbp_updateCertificate:
+        endpoint: /public-key/update
+        method: GET
+        headers:
+          Content-Type: application/json

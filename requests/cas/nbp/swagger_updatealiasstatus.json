@@ -1,0 +1,11 @@
+{
+  "action": "",
+  "aliasType": "",
+  "aliasValue": "",
+  "rrn": "${RRN}",
+  "stan": "${STAN}",
+  "uid": {
+    "type": "",
+    "value": ""
+  }
+}

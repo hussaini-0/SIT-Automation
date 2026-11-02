@@ -1,0 +1,12 @@
+{
+  "currency": "",
+  "id": {
+    "iban": ""
+  },
+  "rrn": "${RRN}",
+  "stan": "${STAN}",
+  "uid": {
+    "type": "",
+    "value": ""
+  }
+}

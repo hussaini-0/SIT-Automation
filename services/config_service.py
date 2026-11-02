@@ -99,6 +99,10 @@ def save_settings(settings: DashboardSettings) -> None:
 def get_services_config() -> dict[str, Any]:
     servers = load_yaml(CONFIG_DIR / "servers.yaml")
     apis = load_yaml(CONFIG_DIR / "apis.yaml")
+    nbp_apis = load_yaml(CONFIG_DIR / "apis_nbp.yaml").get("services", {})
+    for service_id, service_config in nbp_apis.items():
+        configured = apis.setdefault("services", {}).setdefault(service_id, {})
+        configured.setdefault("apis", {}).update(service_config.get("apis", {}))
     services: dict[str, Any] = {}
     for service_id in set(servers.get("services", {})) | set(apis.get("services", {})):
         server_item = dict(servers.get("services", {}).get(service_id, {}) or {})

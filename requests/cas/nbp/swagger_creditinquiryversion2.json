@@ -1,0 +1,6 @@
+{
+  "amount": 0,
+  "iban": "",
+  "rrn": "${RRN}",
+  "stan": "${STAN}"
+}

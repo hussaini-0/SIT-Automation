@@ -17,7 +17,7 @@ from services.config_service import ROOT_DIR
 from services.report_service import append_history
 from services.testcase_service import (
     TestcaseRecord,
-    load_testcase_inventory,
+    scope_run_cases,
     select_testcase_inventory,
     to_runner_testcase,
 )
@@ -30,6 +30,7 @@ class ExecutionOptions:
     testcase_ids: list[str] = field(default_factory=list)
     testcase_keys: list[str] = field(default_factory=list)
     bank: str = ""
+    receiving_bank: str = ""
     workers: int = 4
     timeout: int = 30
     retries: int = 2
@@ -38,6 +39,9 @@ class ExecutionOptions:
     verbose_logging: bool = False
     include_disabled: bool = False
     exclude_dqrc: bool = False
+    skip_rtp: bool = False
+    register_customer_limit: int | None = None
+    sqrc_profile: str = ""
 
 
 @dataclass
@@ -118,9 +122,44 @@ def _select_records(options: ExecutionOptions) -> list[TestcaseRecord]:
         ]
     if options.exclude_dqrc:
         records = [record for record in records if record.api_name != "merchant_payment_direct_dqrc"]
+    records = scope_run_cases(
+        records,
+        skip_rtp=options.skip_rtp,
+        register_customer_limit=options.register_customer_limit,
+    )
     if bank_override:
         records = [replace(record, bank=bank_override) for record in records]
     return records
+
+
+def _limit_negative_auth_attempts(
+    records: list[TestcaseRecord],
+    *,
+    max_attempts: int,
+) -> list[TestcaseRecord]:
+    """Protect bank auth accounts from lockout during negative-test runs."""
+    limit = max(0, int(max_attempts))
+    auth_api_names = {"authenticate", "createAuthenticationTokenUsingPOST"}
+    attempts: dict[tuple[str, str, str], int] = {}
+    limited: list[TestcaseRecord] = []
+
+    for record in records:
+        is_negative_auth = (
+            record.api_name in auth_api_names
+            and record.test_type == "negative"
+        )
+        if not is_negative_auth:
+            limited.append(record)
+            continue
+
+        key = (record.service, record.bank.strip().lower(), record.api_name)
+        used = attempts.get(key, 0)
+        if used >= limit:
+            continue
+        attempts[key] = used + 1
+        limited.append(record)
+
+    return limited
 
 
 def _run_job(job_id: str, options: ExecutionOptions) -> None:
@@ -136,7 +175,11 @@ def _run_job(job_id: str, options: ExecutionOptions) -> None:
     os.environ["ENABLED_SERVICES"] = ",".join(options.services)
 
     try:
-        runner = SITRunner(ROOT_DIR)
+        runner = SITRunner(
+            ROOT_DIR,
+            receiving_bank=options.receiving_bank,
+            sqrc_profile=options.sqrc_profile,
+        )
         defaults = runner.api_config.get("defaults", {})
         runner.api_client = ApiClient(
             timeout_seconds=int(options.timeout),
@@ -148,36 +191,36 @@ def _run_job(job_id: str, options: ExecutionOptions) -> None:
             error_logger=runner.error_logger,
         )
         records = _select_records(options)
+        # The bank starts rejecting the third invalid attempt; keep two as the safety margin.
+        records = _limit_negative_auth_attempts(records, max_attempts=2)
         auth_names_by_service = {
             service: set(runner._auth_api_names(service)) for service in {record.service for record in records}
         }
-        selected_banks_by_service: dict[str, set[str]] = {}
-        for record in records:
-            selected_banks_by_service.setdefault(record.service, set()).add(record.bank)
+        non_auth_records = [
+            record for record in records
+            if record.api_name not in auth_names_by_service[record.service]
+        ]
         auth_records = [
-            record
-            for record in load_testcase_inventory(banks=[options.bank] if str(options.bank or "").strip() else None)
-            if record.service in auth_names_by_service and record.api_name in auth_names_by_service[record.service]
-            and record.execute == "Y"
-            and record.test_type == "positive"
+            record for record in records
+            if record.api_name in auth_names_by_service[record.service]
         ]
-        bank_scoped_auth_records: list[TestcaseRecord] = []
-        for record in auth_records:
-            for bank in sorted(selected_banks_by_service.get(record.service, {record.bank})):
-                bank_scoped_auth_records.append(replace(record, bank=bank))
-        selected_keys = {(record.service, record.tc_id) for record in records}
-        ordered_auth_records = [
-            record for record in bank_scoped_auth_records if (record.service, record.tc_id) not in selected_keys
-        ]
-        ordered_records = [*ordered_auth_records, *records]
 
-        state.total = len(ordered_records)
-        if not ordered_records:
+        state.total = len(records)
+        if not records:
             state.status = "completed"
             state.finished_at = datetime.now().isoformat(timespec="seconds")
             return
 
-        results: list[dict[str, Any]] = []
+        primed_auth = runner.prime_auth_tokens([to_runner_testcase(record) for record in non_auth_records])
+        primed_keys = {(tc.service, tc.bank, tc.tc_id) for tc, _ in primed_auth}
+        selected_keys = {(record.service, record.bank, record.tc_id) for record in records}
+        results: list[dict[str, Any]] = [
+            result for tc, result in primed_auth
+            if (tc.service, tc.bank, tc.tc_id) in selected_keys
+        ]
+        state.completed = len(results)
+        state.passed = sum(result.get("status") == "PASSED" for result in results)
+        state.failed = len(results) - state.passed
         result_lock = threading.Lock()
 
         def execute(record: TestcaseRecord) -> dict[str, Any]:
@@ -223,18 +266,41 @@ def _run_job(job_id: str, options: ExecutionOptions) -> None:
                 state.estimated_remaining_seconds = round(average * (state.total - state.completed), 1)
             return result
 
+        registration_records = [
+            record for record in non_auth_records
+            if record.service == "cas"
+            and record.api_name.lower() == "registercustomer"
+            and record.test_type == "positive"
+        ]
+        dependent_customer_records = [
+            record for record in non_auth_records
+            if record.service == "cas"
+            and record.tc_id in {"TC012", "TC021"}
+            and record.test_type == "positive"
+        ]
+        prerequisite_keys = {
+            (record.service, record.bank, record.tc_id)
+            for record in registration_records + dependent_customer_records
+        }
+        remaining_records = [
+            record for record in non_auth_records
+            if (record.service, record.bank, record.tc_id) not in prerequisite_keys
+        ]
+
         started_perf = time.perf_counter()
-        for record in ordered_auth_records:
+        for record in sorted(registration_records, key=lambda item: item.tc_id):
             if state.cancel_requested:
                 break
             execute(record)
-
-        execution_records = records
+        for record in sorted(dependent_customer_records, key=lambda item: item.tc_id):
+            if state.cancel_requested:
+                break
+            execute(record)
         if state.cancel_requested:
             pass
         elif options.parallel:
             with ThreadPoolExecutor(max_workers=max(1, options.workers)) as executor:
-                futures = [executor.submit(execute, record) for record in execution_records]
+                futures = [executor.submit(execute, record) for record in remaining_records]
                 for future in as_completed(futures):
                     if state.cancel_requested:
                         for pending in futures:
@@ -242,10 +308,23 @@ def _run_job(job_id: str, options: ExecutionOptions) -> None:
                         break
                     future.result()
         else:
-            for record in execution_records:
+            for record in remaining_records:
                 if state.cancel_requested:
                     break
                 execute(record)
+
+        # Negative auth attempts can lock the account; run all auth variants last.
+        remaining_auth = [
+            record for record in auth_records
+            if (record.service, record.bank, record.tc_id) not in primed_keys
+        ]
+        remaining_auth.sort(key=lambda record: (
+            record.test_type == "negative", record.service, record.tc_id
+        ))
+        for record in remaining_auth:
+            if state.cancel_requested:
+                break
+            execute(record)
 
         results.sort(key=lambda item: (item.get("service", ""), item.get("tc_id", "")))
         finished = datetime.now()

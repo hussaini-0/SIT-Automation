@@ -1,0 +1,15 @@
+{
+  "amount": 0,
+  "fee": 0,
+  "narration": "",
+  "payment_purpose": "",
+  "receiver_iban": "",
+  "receiver_name": "",
+  "receiver_participant_code": "",
+  "rrn": "${RRN}",
+  "sender_iban": "",
+  "sender_name": "",
+  "stan": "${STAN}",
+  "transaction_date": "",
+  "transaction_time": ""
+}

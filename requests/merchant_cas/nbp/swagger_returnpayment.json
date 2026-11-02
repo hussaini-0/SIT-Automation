@@ -1,0 +1,11 @@
+{
+  "info": {
+    "rrn": "${RRN}",
+    "stan": "${STAN}"
+  },
+  "returnPaymentInfo": {
+    "orgnlMessageId": "",
+    "returnAmount": 0,
+    "returnReason": ""
+  }
+}

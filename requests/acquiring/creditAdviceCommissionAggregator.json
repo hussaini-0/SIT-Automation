@@ -1,12 +1,12 @@
 {
   "payerDetails": {
-    "iban": "PK14MCIB0481000001240001",
+    "iban": "${SENDER_IBAN}",
     "payerName": "MOHAMMAD FAYYAZ"
   },
   "payeeDetails": {
-    "iban": "PK61ABPA0010000019474073",
+    "iban": "${RECEIVER_IBAN}",
     "payeeName": "Imran",
-    "memberId": "MCIB01"
+    "memberId": "${RECEIVER_PARTICIPANT_CODE}"
   },
   "paymentDetails": {
     "amount": 110,

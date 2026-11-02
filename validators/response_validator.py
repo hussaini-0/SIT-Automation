@@ -29,19 +29,45 @@ class ResponseValidator:
         expected_result: str,
         response: Dict[str, Any],
         validation_rules: Optional[Dict[str, Any]] = None,
+        test_type: str = "",
     ) -> Dict[str, Any]:
         validation_type = (validation_type or "response").strip().lower()
         rules = validation_rules or {}
 
-        if validation_type == "status_code":
-            return self._validate_status_code(expected_result, response)
-        if validation_type == "json_field":
-            return self._validate_json_field(expected_result, response, rules)
-        if validation_type == "response":
-            return self._validate_response_contains(expected_result, response, rules)
+        # A connection/transport failure is never a valid API response, even for
+        # a negative testcase. This prevents empty raw responses from passing.
+        if response.get("status_code") is None:
+            actual = response.get("error") or response.get("text") or "No HTTP response received"
+            self.validation_logger.warning("TRANSPORT_VALIDATION_FAILED | actual=%s", actual)
+            return {"passed": False, "actual": str(actual)}
 
-        self.validation_logger.warning("Unknown validation_type=%s; fallback to response", validation_type)
-        return self._validate_response_contains(expected_result, response, rules)
+        if str(test_type or "").strip().lower() == "positive":
+            status_code = response.get("status_code")
+            if not isinstance(status_code, int) or not 200 <= status_code < 300:
+                actual = self._server_error_actual(response)
+                self.validation_logger.warning("POSITIVE_HTTP_STATUS_FAILED | actual=%s", actual)
+                return {"passed": False, "actual": actual}
+
+        if validation_type == "status_code":
+            result = self._validate_status_code(expected_result, response)
+        elif validation_type == "json_field":
+            result = self._validate_json_field(expected_result, response, rules)
+        elif validation_type == "response":
+            result = self._validate_response_contains(expected_result, response, rules)
+        else:
+            self.validation_logger.warning("Unknown validation_type=%s; fallback to response", validation_type)
+            result = self._validate_response_contains(expected_result, response, rules)
+
+        if result.get("passed") and self._has_unexpected_business_failure(response, test_type):
+            actual = self._business_failure_actual(response)
+            self.validation_logger.warning(
+                "POSITIVE_BUSINESS_RESPONSE_GUARD | test_type=%s | actual=%s",
+                test_type,
+                actual,
+            )
+            return {"passed": False, "actual": actual}
+
+        return result
 
     def _validate_status_code(self, expected_result: str, response: Dict[str, Any]) -> Dict[str, Any]:
         expected_text = str(expected_result).strip()
@@ -199,6 +225,97 @@ class ResponseValidator:
             else:
                 return None
         return current
+
+    @classmethod
+    def _has_unexpected_server_error(cls, response: Dict[str, Any], test_type: str) -> bool:
+        if str(test_type or "").strip().lower() != "positive":
+            return False
+
+        status_code = response.get("status_code")
+        if isinstance(status_code, int) and status_code >= 500:
+            return True
+
+        body = response.get("body", {}) or {}
+        response_code = cls._get_first_path_value(body, ["response_code", "response.response_code"])
+        response_desc = cls._get_first_path_value(body, ["response_desc", "response.response_desc"])
+        response_error = cls._get_first_path_value(body, ["error", "message", "response.error", "response.message"])
+        combined_text = cls._normalize_message(" ".join(str(value or "") for value in [response_desc, response_error]))
+
+        return str(response_code).strip() == "500" or "internal server error" in combined_text
+
+    @classmethod
+    def _has_unexpected_business_failure(cls, response: Dict[str, Any], test_type: str) -> bool:
+        if str(test_type or "").strip().lower() != "positive":
+            return False
+        if cls._has_unexpected_server_error(response, test_type):
+            return True
+
+        body = response.get("body", {}) or {}
+        response_code = cls._get_first_path_value(body, ["response_code", "response.response_code"])
+        if response_code is not None:
+            normalized_code = str(response_code).strip()
+            if normalized_code and normalized_code not in {"00", "000", "200"}:
+                return True
+
+        response_desc = cls._get_first_path_value(body, ["response_desc", "response.response_desc"])
+        response_error = cls._get_first_path_value(body, ["error", "message", "response.error", "response.message"])
+        business_status = body.get("status") if isinstance(body, dict) else None
+        description = cls._normalize_message(
+            " ".join(str(value or "") for value in [response_desc, response_error])
+        )
+        failure_terms = (
+            "internal server error",
+            "invalid",
+            "failed",
+            "cannot",
+            "not completed",
+            "not found",
+            "rejected",
+        )
+        if any(term in description for term in failure_terms):
+            return True
+
+        normalized_status = cls._normalize_message(business_status).replace("-", "_").replace(" ", "_")
+        return any(
+            term in normalized_status
+            for term in ("unacknowledge", "unackowledge", "reject", "fail", "error")
+        )
+
+    @classmethod
+    def _business_failure_actual(cls, response: Dict[str, Any]) -> str:
+        body = response.get("body", {}) or {}
+        response_code = cls._get_first_path_value(body, ["response_code", "response.response_code"])
+        response_desc = cls._get_first_path_value(body, ["response_desc", "response.response_desc"])
+        business_status = body.get("status") if isinstance(body, dict) else None
+        parts = [f"HTTP {response.get('status_code')}"]
+        if response_code is not None:
+            parts.append(f"response_code={response_code}")
+        if response_desc:
+            parts.append(f"response_desc={response_desc}")
+        if business_status is not None:
+            parts.append(f"business_status={business_status}")
+        return "; ".join(parts)
+
+    @classmethod
+    def _server_error_actual(cls, response: Dict[str, Any]) -> str:
+        body = response.get("body", {}) or {}
+        response_code = cls._get_first_path_value(body, ["response_code", "response.response_code"])
+        response_desc = cls._get_first_path_value(body, ["response_desc", "response.response_desc"])
+        status_code = response.get("status_code")
+        parts = [f"HTTP {status_code}"]
+        if response_code is not None:
+            parts.append(f"response_code={response_code}")
+        if response_desc:
+            parts.append(f"response_desc={response_desc}")
+        return "; ".join(parts)
+
+    @classmethod
+    def _get_first_path_value(cls, payload: Any, paths: list[str]) -> Any:
+        for path in paths:
+            value = cls._get_path_value(payload, path)
+            if value is not None:
+                return value
+        return None
 
     @classmethod
     def _normalize_message(cls, value: Any) -> str:
