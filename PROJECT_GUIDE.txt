@@ -1,0 +1,57 @@
+SIT Automation - Project Guide
+==============================
+
+What is this?
+-------------
+This repository contains automated tests used for System Integration Testing
+(SIT). The tests help verify that parts of the system work together as
+expected and reduce the amount of repetitive manual testing needed after a
+change.
+
+Who is this for?
+----------------
+This guide is for anyone who needs to run, review, update, or troubleshoot
+the automated tests but is new to this project.
+
+Before you start
+----------------
+1. Make sure you have access to the system/environment being tested.
+2. Ask the project owner for any required test accounts, passwords, API keys,
+   or environment-specific settings. Do not add secrets to the repository.
+3. Read the project's main README file, if present, for the exact setup and
+   command required to run the tests.
+
+Using the project
+-----------------
+1. Start with the README and the test folders. Their names normally identify
+   the feature or system area they cover.
+2. Run the relevant test suite before making a change. This gives you a known
+   starting point and helps distinguish existing failures from new ones.
+3. Make focused changes, then run the affected tests again and review the
+   result before sharing your changes.
+
+When a test fails
+-----------------
+1. Read the failure message and any generated logs, screenshots, reports, or
+   other test artifacts.
+2. Check that the target environment is available and that the test data and
+   credentials are still valid.
+3. Determine whether it is an application issue, an expected product change,
+   an environment/data/access problem, or an intermittent test.
+4. Record the test name, environment, time, input data, observed result, and
+   relevant logs so someone else can reproduce the issue.
+
+Good practices
+--------------
+- Do not commit passwords, tokens, personal data, or secret settings.
+- Keep changes small and explain why they are needed in your commit or pull
+  request description.
+- Do not change a test merely to make it pass unless the intended behaviour
+  has changed.
+- Ask the test owner if you are unsure which tests to run or how to interpret
+  a failure.
+
+Where to get help
+-----------------
+Contact the team or project owner responsible for SIT automation. Include the
+test name, command run, environment, and failure output when asking for help.

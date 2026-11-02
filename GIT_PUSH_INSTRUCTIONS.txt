@@ -1,0 +1,33 @@
+Git Push Instructions
+=====================
+
+Run these commands from the repository folder in PowerShell:
+
+1. Check the current repository status:
+
+   git status
+
+   This shows the current branch, any changed files, and whether the branch
+   is ahead of or behind its remote counterpart.
+
+2. Push the current branch to its configured remote:
+
+   git push
+
+   This uploads commits that have not yet been sent to the remote repository.
+
+If Git reports that the current branch has no upstream branch, run:
+
+   git push -u origin $(git branch --show-current)
+
+This creates the upstream connection between the current local branch and
+the branch of the same name on the "origin" remote. Future pushes can then
+use simply:
+
+   git push
+
+If there are uncommitted changes, create a commit before pushing:
+
+   git add <files>
+   git commit -m "Describe the change"
+   git push
